@@ -63,8 +63,6 @@ func allNestedAttributesAreNull(obj basetypes.ObjectValue) bool {
 			return false
 		}
 
-		// (Optional) You might log the key/value here for debugging:
-		// log.Printf("Attribute %q is null or recursively null", key)
 	}
 
 	// If we finish iterating without finding a non-null attribute,

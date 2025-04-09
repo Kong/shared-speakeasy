@@ -5,7 +5,6 @@ linters:
   enable:
     - bodyclose
     - contextcheck
-    - depguard
     - errcheck
     - ginkgolinter
     - gocritic

@@ -2,9 +2,9 @@ package objectplanmodifier
 
 import (
 	"context"
-	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 )
 
 var _ planmodifier.Object = ObjectSupressZeroNullModifierPlanModifier{}

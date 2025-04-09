@@ -3,9 +3,6 @@ concurrency:
   group: lint-${{ github.ref }}
 on:
   pull_request:
-    paths:
-    - '.golangci.yml'
-    - '.github/workflows/lint.yaml'
 
 jobs:
   lint:

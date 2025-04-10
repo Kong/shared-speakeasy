@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 var _ planmodifier.List = ListSupressZeroNullModifierPlanModifier{}
@@ -23,7 +24,7 @@ func (v ListSupressZeroNullModifierPlanModifier) MarkdownDescription(ctx context
 // Validate performs the plan modification.
 func (v ListSupressZeroNullModifierPlanModifier) PlanModifyList(ctx context.Context, req planmodifier.ListRequest, resp *planmodifier.ListResponse) {
 	if len(resp.PlanValue.Elements()) == 0 && len(req.StateValue.Elements()) == 0 && req.ConfigValue.IsNull() {
-		resp.PlanValue = req.StateValue
+		resp.PlanValue = types.ListNull(req.ConfigValue.ElementType(ctx))
 	}
 }
 

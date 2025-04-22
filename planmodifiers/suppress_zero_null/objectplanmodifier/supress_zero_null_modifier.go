@@ -62,7 +62,6 @@ func allNestedAttributesAreNull(obj basetypes.ObjectValue) bool {
 			// we conclude that not all attributes are null.
 			return false
 		}
-
 	}
 
 	// If we finish iterating without finding a non-null attribute,

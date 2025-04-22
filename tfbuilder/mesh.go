@@ -31,6 +31,11 @@ func (m *MeshBuilder) WithCPID(cpID string) *MeshBuilder {
 	return m
 }
 
+func (m *MeshBuilder) WithDependsOn(deps ...string) *MeshBuilder {
+	m.DependsOn = append(m.DependsOn, deps...)
+	return m
+}
+
 func (m *MeshBuilder) Render(provider ProviderType) string {
 	data := map[string]interface{}{
 		"Provider":     provider,

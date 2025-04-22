@@ -20,12 +20,13 @@ func NewControlPlane(resourceName, name, description string) *ControlPlane {
 	}
 }
 
-func (cp *ControlPlane) Render(provider ProviderType) string {
+func (cp *ControlPlane) Render(provider *Builder) string {
 	data := map[string]interface{}{
-		"Provider":     provider,
-		"ResourceName": cp.ResourceName,
-		"Name":         cp.Name,
-		"Description":  cp.Description,
+		"Provider":         provider.provider,
+		"ProviderProperty": provider.providerProperty,
+		"ResourceName":     cp.ResourceName,
+		"Name":             cp.Name,
+		"Description":      cp.Description,
 	}
 
 	tmplBytes, err := templatesFS.ReadFile("templates/control_plane.tmpl")

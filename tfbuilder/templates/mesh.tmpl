@@ -1,5 +1,9 @@
 resource "{{.Provider}}_mesh" "{{.ResourceName}}" {
+  {{- if .ProviderProperty }}
+  provider = {{.ProviderProperty}}
+  {{- else }}
   provider = "{{.Provider}}"
+  {{- end }}
   {{- if .CPID }}
   cp_id = {{.CPID}}
   {{- end }}

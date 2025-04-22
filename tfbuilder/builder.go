@@ -81,17 +81,17 @@ func (b *Builder) Build() string {
 	sb.WriteString("\n")
 
 	for _, cp := range b.controlPlanes {
-		sb.WriteString(cp.Render(b.provider))
+		sb.WriteString(cp.Render(b))
 		sb.WriteString("\n")
 	}
 
 	for _, mesh := range b.meshes {
-		sb.WriteString(mesh.Render(b.provider))
+		sb.WriteString(mesh.Render(b))
 		sb.WriteString("\n")
 	}
 
 	for _, policy := range b.policies {
-		sb.WriteString(policy.Render(b.provider))
+		sb.WriteString(policy.Render(b))
 		sb.WriteString("\n")
 	}
 

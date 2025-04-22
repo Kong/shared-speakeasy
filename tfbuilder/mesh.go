@@ -36,14 +36,15 @@ func (m *MeshBuilder) WithDependsOn(deps ...string) *MeshBuilder {
 	return m
 }
 
-func (m *MeshBuilder) Render(provider ProviderType) string {
+func (m *MeshBuilder) Render(provider *Builder) string {
 	data := map[string]interface{}{
-		"Provider":     provider,
-		"ResourceName": m.ResourceName,
-		"MeshName":     m.MeshName,
-		"DependsOn":    m.DependsOn,
-		"Spec":         m.Spec,
-		"CPID":         m.CPID,
+		"Provider":         provider.provider,
+		"ProviderProperty": provider.providerProperty,
+		"ResourceName":     m.ResourceName,
+		"MeshName":         m.MeshName,
+		"DependsOn":        m.DependsOn,
+		"Spec":             m.Spec,
+		"CPID":             m.CPID,
 	}
 
 	tmplBytes, err := templatesFS.ReadFile("templates/mesh.tmpl")

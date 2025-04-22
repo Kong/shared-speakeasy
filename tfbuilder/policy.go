@@ -67,7 +67,7 @@ func (p *PolicyBuilder) WithCPID(cpID string) *PolicyBuilder {
 	return p
 }
 
-func (p *PolicyBuilder) Render(provider ProviderType) string {
+func (p *PolicyBuilder) Render(provider *Builder) string {
 	tmplBytes, err := templatesFS.ReadFile("templates/policy.tmpl")
 	if err != nil {
 		panic(fmt.Errorf("failed to read policy template: %w", err))
@@ -80,16 +80,17 @@ func (p *PolicyBuilder) Render(provider ProviderType) string {
 
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, map[string]interface{}{
-		"Provider":     provider,
-		"ResourceType": p.ResourceType,
-		"ResourceName": p.ResourceName,
-		"MeshRef":      p.MeshRef,
-		"DependsOn":    p.DependsOn,
-		"Labels":       p.Labels,
-		"Name":         p.PolicyName,
-		"Type":         p.Type,
-		"Spec":         p.SpecHCL,
-		"CPID":         p.CPID,
+		"Provider":         provider.provider,
+		"ProviderProperty": provider.providerProperty,
+		"ResourceType":     p.ResourceType,
+		"ResourceName":     p.ResourceName,
+		"MeshRef":          p.MeshRef,
+		"DependsOn":        p.DependsOn,
+		"Labels":           p.Labels,
+		"Name":             p.PolicyName,
+		"Type":             p.Type,
+		"Spec":             p.SpecHCL,
+		"CPID":             p.CPID,
 	}); err != nil {
 		panic(err)
 	}

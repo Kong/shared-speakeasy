@@ -16,13 +16,14 @@ const (
 )
 
 type Builder struct {
-	provider      ProviderType
-	scheme        string
-	host          string
-	port          int
-	controlPlanes map[string]*ControlPlane
-	meshes        map[string]*MeshBuilder
-	policies      map[string]*PolicyBuilder
+	provider         ProviderType
+	providerProperty ProviderType // optional
+	scheme           string
+	host             string
+	port             int
+	controlPlanes    map[string]*ControlPlane
+	meshes           map[string]*MeshBuilder
+	policies         map[string]*PolicyBuilder
 }
 
 func NewBuilder(provider ProviderType, scheme, host string, port int) *Builder {
@@ -62,14 +63,20 @@ func (b *Builder) RemovePolicy(name string) *Builder {
 	return b
 }
 
+func (b *Builder) WithProviderProperty(providerProperty ProviderType) *Builder {
+	b.providerProperty = providerProperty
+	return b
+}
+
 func (b *Builder) Build() string {
 	var sb strings.Builder
 
 	sb.WriteString(b.renderTemplate("provider.tmpl", map[string]interface{}{
-		"Provider": b.provider,
-		"Scheme":   b.scheme,
-		"Host":     b.host,
-		"Port":     b.port,
+		"Provider":         b.provider,
+		"ProviderProperty": b.providerProperty,
+		"Scheme":           b.scheme,
+		"Host":             b.host,
+		"Port":             b.port,
 	}))
 	sb.WriteString("\n")
 

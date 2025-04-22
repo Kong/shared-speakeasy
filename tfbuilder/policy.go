@@ -29,6 +29,7 @@ type PolicyBuilder struct {
 	PolicyName   string
 	Type         string
 	SpecHCL      string // literal HCL block
+	CPID         string // Optional
 }
 
 func NewPolicyBuilder(resourceType, resourceName, policyName, policyType string) *PolicyBuilder {
@@ -61,6 +62,11 @@ func (p *PolicyBuilder) WithSpecHCL(hcl string) *PolicyBuilder {
 	return p
 }
 
+func (p *PolicyBuilder) WithCPID(cpID string) *PolicyBuilder {
+	p.CPID = cpID
+	return p
+}
+
 func (p *PolicyBuilder) Render(provider ProviderType) string {
 	tmplBytes, err := templatesFS.ReadFile("templates/policy.tmpl")
 	if err != nil {
@@ -83,6 +89,7 @@ func (p *PolicyBuilder) Render(provider ProviderType) string {
 		"Name":         p.PolicyName,
 		"Type":         p.Type,
 		"Spec":         p.SpecHCL,
+		"CPID":         p.CPID,
 	}); err != nil {
 		panic(err)
 	}

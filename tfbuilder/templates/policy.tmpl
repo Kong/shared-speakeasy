@@ -1,5 +1,8 @@
 resource "{{.Provider}}_{{.ResourceType}}" "{{.ResourceName}}" {
   provider = "{{.Provider}}"
+  {{- if .CPID }}
+  cp_id = {{.CPID}}
+  {{- end }}
   mesh = {{.MeshRef}}
   {{- if .DependsOn }}
   depends_on = [{{range $i, $v := .DependsOn}}{{if $i}}, {{end}}{{$v}}{{end}}]

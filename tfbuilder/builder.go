@@ -37,8 +37,8 @@ func NewBuilder(provider ProviderType, scheme, host string, port int) *Builder {
 	}
 }
 
-func (b *Builder) AddControlPlane(name string, cp *ControlPlane) *Builder {
-	b.controlPlanes[name] = cp
+func (b *Builder) AddControlPlane(cp *ControlPlane) *Builder {
+	b.controlPlanes[cp.ResourceName] = cp
 	return b
 }
 

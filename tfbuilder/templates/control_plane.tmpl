@@ -1,0 +1,9 @@
+resource "{{.Provider}}_mesh_control_plane" "{{.ResourceName}}" {
+  {{- if .ProviderProperty }}
+  provider = "{{.ProviderProperty}}"
+  {{- else }}
+  provider = "{{.Provider}}"
+  {{- end }}
+  name = "{{.Name}}"
+  description = "{{.Description}}"
+}

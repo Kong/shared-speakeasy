@@ -1,0 +1,9 @@
+provider "{{.Provider}}" {
+  server_url = "{{.Scheme}}://{{.Host}}:{{.Port}}"
+}
+
+{{- if .ProviderProperty }}
+provider "{{.ProviderProperty}}" {
+  server_url = "{{.Scheme}}://{{.Host}}:{{.Port}}"
+}
+{{- end }}

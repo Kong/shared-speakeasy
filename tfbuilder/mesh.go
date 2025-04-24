@@ -36,6 +36,21 @@ func (m *MeshBuilder) WithDependsOn(deps ...string) *MeshBuilder {
 	return m
 }
 
+func (m *MeshBuilder) AddToSpec(after, newLine string) *MeshBuilder {
+	m.Spec = addToSpec(m.Spec, after, newLine)
+	return m
+}
+
+func (m *MeshBuilder) RemoveFromSpec(match string) *MeshBuilder {
+	m.Spec = removeFromSpec(m.Spec, match)
+	return m
+}
+
+func (m *MeshBuilder) UpdateSpec(match, newValue string) *MeshBuilder {
+	m.Spec = updateSpec(m.Spec, match, newValue)
+	return m
+}
+
 func (m *MeshBuilder) Render(provider *Builder) string {
 	data := map[string]interface{}{
 		"Provider":         provider.provider,

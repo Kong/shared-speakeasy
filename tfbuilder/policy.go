@@ -28,7 +28,7 @@ type PolicyBuilder struct {
 	Labels       map[string]string
 	PolicyName   string
 	Type         string
-	SpecHCL      string // literal HCL block
+	Spec         string // literal HCL block
 	CPID         string // Optional
 }
 
@@ -57,13 +57,28 @@ func (p *PolicyBuilder) WithDependsOn(deps ...string) *PolicyBuilder {
 	return p
 }
 
-func (p *PolicyBuilder) WithSpecHCL(hcl string) *PolicyBuilder {
-	p.SpecHCL = hcl
+func (p *PolicyBuilder) WithSpec(hcl string) *PolicyBuilder {
+	p.Spec = hcl
 	return p
 }
 
 func (p *PolicyBuilder) WithCPID(cpID string) *PolicyBuilder {
 	p.CPID = cpID
+	return p
+}
+
+func (p *PolicyBuilder) AddToSpec(after, newLine string) *PolicyBuilder {
+	p.Spec = addToSpec(p.Spec, after, newLine)
+	return p
+}
+
+func (p *PolicyBuilder) RemoveFromSpec(match string) *PolicyBuilder {
+	p.Spec = removeFromSpec(p.Spec, match)
+	return p
+}
+
+func (p *PolicyBuilder) UpdateSpec(match, newValue string) *PolicyBuilder {
+	p.Spec = updateSpec(p.Spec, match, newValue)
 	return p
 }
 
@@ -89,7 +104,7 @@ func (p *PolicyBuilder) Render(provider *Builder) string {
 		"Labels":           p.Labels,
 		"Name":             p.PolicyName,
 		"Type":             p.Type,
-		"Spec":             p.SpecHCL,
+		"Spec":             p.Spec,
 		"CPID":             p.CPID,
 	}); err != nil {
 		panic(err)

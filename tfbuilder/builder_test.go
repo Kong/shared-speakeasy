@@ -27,7 +27,10 @@ func TestBuilder_KongMeshWithPolicy(t *testing.T) {
 			WithLabels(map[string]string{
 				"kuma.io/mesh": "kong-mesh_mesh.default.name",
 			}).
-			WithSpecHCL(tfbuilder.AllowAllTrafficPermissionSpec),
+			WithSpec(tfbuilder.AllowAllTrafficPermissionSpec).
+			AddToSpec(`kind = "Mesh"`, `proxy_types = ["Sidecar"]`).
+			UpdateSpec(`kind = "Mesh"`, `kind = "MeshSubset"`).
+			RemoveFromSpec(`action = "Allow"`),
 	)
 
 	actual := builder.Build()

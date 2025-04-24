@@ -25,10 +25,10 @@ resource "kong-mesh_mesh_traffic_permission" "allow_all" {
     from = [
       {
         target_ref = {
-          kind = "Mesh"
+          kind = "MeshSubset"
+          proxy_types = ["Sidecar"]
         }
         default = {
-          action = "Allow"
         }
       }
     ]

@@ -26,7 +26,7 @@ func CreateMeshAndModifyFieldsOnIt(
 			},
 			CheckReapplyPlanEmpty(builder),
 			{
-				Config: builder.AddMesh(mesh.WithSpec(`skip_creating_initial_policies = [ "*" ]
+				Config: builder.AddMesh(mesh.WithSpec(`constraints = { dataplane_proxy = { requirements = [ { tags = { key = "a" } } ] } }
   routing = {
     default_forbid_mesh_external_service_access = true
   }
@@ -49,22 +49,22 @@ func CreateMeshAndModifyFieldsOnIt(
 			},
 			CheckReapplyPlanEmpty(builder),
 			{
-				Config: builder.AddMesh(mesh.UpdateSpec(`skip_creating_initial_policies = [ "*" ]`, `skip_creating_initial_policies = []`)).Build(),
+				Config: builder.AddMesh(mesh.UpdateSpec(`constraints = { dataplane_proxy = { requirements = [ { tags = { key = "a" } } ] } }`, `constraints = { dataplane_proxy = { requirements = [] } }`)).Build(),
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
 						plancheck.ExpectResourceAction(builder.ResourceAddress("mesh", mesh.ResourceName), plancheck.ResourceActionUpdate),
-						plancheck.ExpectKnownValue(builder.ResourceAddress("mesh", mesh.ResourceName), tfjsonpath.New("skip_creating_initial_policies"), knownvalue.ListExact([]knownvalue.Check{})),
+						plancheck.ExpectKnownValue(builder.ResourceAddress("mesh", mesh.ResourceName), tfjsonpath.New("constraints").AtMapKey("dataplane_proxy").AtMapKey("requirements"), knownvalue.ListExact([]knownvalue.Check{})),
 					},
 				},
 			},
 			CheckReapplyPlanEmpty(builder),
 			{
-				Config: builder.AddMesh(mesh.RemoveFromSpec(`skip_creating_initial_policies = []`)).Build(),
+				Config: builder.AddMesh(mesh.RemoveFromSpec(`constraints = { dataplane_proxy = { requirements = [] } }`)).Build(),
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
 						// since we use default of [] this is a noop and not an update
 						plancheck.ExpectResourceAction(builder.ResourceAddress("mesh", mesh.ResourceName), plancheck.ResourceActionNoop),
-						plancheck.ExpectKnownValue(builder.ResourceAddress("mesh", mesh.ResourceName), tfjsonpath.New("skip_creating_initial_policies"), knownvalue.ListExact([]knownvalue.Check{})),
+						plancheck.ExpectKnownValue(builder.ResourceAddress("mesh", mesh.ResourceName), tfjsonpath.New("constraints").AtMapKey("dataplane_proxy").AtMapKey("requirements"), knownvalue.ListExact([]knownvalue.Check{})),
 					},
 				},
 			},

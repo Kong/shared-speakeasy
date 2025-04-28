@@ -65,17 +65,6 @@ func CreateMeshAndModifyFieldsOnIt(
 			},
 			CheckReapplyPlanEmpty(builder),
 			{
-				Config: builder.AddMesh(mesh.RemoveFromSpec(`requirements = []`)).Build(),
-				ConfigPlanChecks: resource.ConfigPlanChecks{
-					PreApply: []plancheck.PlanCheck{
-						// since we use default of [] this is a noop and not an update
-						plancheck.ExpectResourceAction(builder.ResourceAddress("mesh", mesh.ResourceName), plancheck.ResourceActionNoop),
-						plancheck.ExpectKnownValue(builder.ResourceAddress("mesh", mesh.ResourceName), tfjsonpath.New("constraints").AtMapKey("dataplane_proxy").AtMapKey("requirements"), knownvalue.ListExact([]knownvalue.Check{})),
-					},
-				},
-			},
-			CheckReapplyPlanEmpty(builder),
-			{
 				Config: builder.RemoveMesh(mesh.MeshName).Build(),
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{

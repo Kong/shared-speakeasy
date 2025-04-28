@@ -10,7 +10,7 @@ import (
 
 func CreateMeshAndModifyFieldsOnIt(
 	providerFactory map[string]func() (tfprotov6.ProviderServer, error),
-	builder *Builder,
+	builder ModifyMeshBuilder,
 	mesh *MeshBuilder,
 ) resource.TestCase {
 	return resource.TestCase{
@@ -79,33 +79,24 @@ func CreateMeshAndModifyFieldsOnIt(
 
 func CreatePolicyAndModifyFieldsOnIt(
 	providerFactory map[string]func() (tfprotov6.ProviderServer, error),
-	builder *Builder,
-	mesh *MeshBuilder,
+	builder ModifyPolicyBuilder,
+	meshName string,
+	meshResource string,
 	mtp *PolicyBuilder,
 ) resource.TestCase {
-	mtp.WithMeshRef(builder.ResourceAddress("mesh", mesh.ResourceName) + ".name").
-		WithDependsOn(builder.ResourceAddress("mesh", mesh.ResourceName)).
+	mtp.WithMeshRef(builder.ResourceAddress("mesh", meshResource) + ".name").
+		WithDependsOn(builder.ResourceAddress("mesh", meshResource)).
 		WithLabels(map[string]string{
-			"kuma.io/mesh":   mesh.MeshName,
+			"kuma.io/mesh":   meshName,
 			"kuma.io/env":    "universal",
 			"kuma.io/origin": "zone",
 			"kuma.io/zone":   "default",
 		}).
 		WithSpec(AllowAllTrafficPermissionSpec)
-	builder.AddMesh(mesh)
 
 	return resource.TestCase{
 		ProtoV6ProviderFactories: providerFactory,
 		Steps: []resource.TestStep{
-			{
-				Config: builder.Build(),
-				ConfigPlanChecks: resource.ConfigPlanChecks{
-					PreApply: []plancheck.PlanCheck{
-						plancheck.ExpectResourceAction(builder.ResourceAddress("mesh", mesh.ResourceName), plancheck.ResourceActionCreate),
-					},
-				},
-			},
-			CheckReapplyPlanEmpty(builder),
 			{
 				Config: builder.AddPolicy(mtp).Build(),
 				ConfigPlanChecks: resource.ConfigPlanChecks{

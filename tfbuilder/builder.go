@@ -26,6 +26,28 @@ type Builder struct {
 	policies         map[string]*PolicyBuilder
 }
 
+type ModifyMeshBuilder interface {
+	OnlyBuild
+	AddressableBuilder
+	AddMesh(mesh *MeshBuilder) ModifyMeshBuilder
+	RemoveMesh(name string) ModifyMeshBuilder
+}
+
+type ModifyPolicyBuilder interface {
+	OnlyBuild
+	AddressableBuilder
+	AddPolicy(builder *PolicyBuilder) ModifyPolicyBuilder
+	RemovePolicy(name string) ModifyPolicyBuilder
+}
+
+type AddressableBuilder interface {
+	ResourceAddress(s string, resource string) string
+}
+
+type OnlyBuild interface {
+	Build() string
+}
+
 func NewBuilder(provider ProviderType, scheme, host string, port int) *Builder {
 	return &Builder{
 		provider:      provider,

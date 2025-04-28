@@ -29,15 +29,15 @@ type Builder struct {
 type ModifyMeshBuilder interface {
 	OnlyBuild
 	AddressableBuilder
-	AddMesh(mesh *MeshBuilder) ModifyMeshBuilder
-	RemoveMesh(name string) ModifyMeshBuilder
+	AddMesh(mesh *MeshBuilder) *Builder
+	RemoveMesh(name string) *Builder
 }
 
 type ModifyPolicyBuilder interface {
 	OnlyBuild
 	AddressableBuilder
-	AddPolicy(builder *PolicyBuilder) ModifyPolicyBuilder
-	RemovePolicy(name string) ModifyPolicyBuilder
+	AddPolicy(builder *PolicyBuilder) *Builder
+	RemovePolicy(name string) *Builder
 }
 
 type AddressableBuilder interface {

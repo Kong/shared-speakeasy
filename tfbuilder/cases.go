@@ -80,19 +80,9 @@ func CreateMeshAndModifyFieldsOnIt(
 func CreatePolicyAndModifyFieldsOnIt(
 	providerFactory map[string]func() (tfprotov6.ProviderServer, error),
 	builder ModifyPolicyBuilder,
-	meshName string,
-	meshResource string,
 	mtp *PolicyBuilder,
 ) resource.TestCase {
-	mtp.WithMeshRef(builder.ResourceAddress("mesh", meshResource) + ".name").
-		WithDependsOn(builder.ResourceAddress("mesh", meshResource)).
-		WithLabels(map[string]string{
-			"kuma.io/mesh":   meshName,
-			"kuma.io/env":    "universal",
-			"kuma.io/origin": "zone",
-			"kuma.io/zone":   "default",
-		}).
-		WithSpec(AllowAllTrafficPermissionSpec)
+	mtp.WithSpec(AllowAllTrafficPermissionSpec)
 
 	return resource.TestCase{
 		ProtoV6ProviderFactories: providerFactory,

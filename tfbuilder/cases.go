@@ -26,7 +26,13 @@ func CreateMeshAndModifyFieldsOnIt(
 			},
 			CheckReapplyPlanEmpty(builder),
 			{
-				Config: builder.AddMesh(mesh.WithSpec(`constraints = { dataplane_proxy = { requirements = [ { tags = { key = "a" } } ] } }
+				Config: builder.AddMesh(mesh.WithSpec(`
+  constraints = {
+    dataplane_proxy = {
+      requirements = [ { tags = { key = "a" } } ]
+      restrictions = []
+    }
+  }
   routing = {
     default_forbid_mesh_external_service_access = true
   }
@@ -49,7 +55,7 @@ func CreateMeshAndModifyFieldsOnIt(
 			},
 			CheckReapplyPlanEmpty(builder),
 			{
-				Config: builder.AddMesh(mesh.UpdateSpec(`constraints = { dataplane_proxy = { requirements = [ { tags = { key = "a" } } ] } }`, `constraints = { dataplane_proxy = { requirements = [] } }`)).Build(),
+				Config: builder.AddMesh(mesh.UpdateSpec(`requirements = [ { tags = { key = "a" } } ]`, `requirements = []`)).Build(),
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
 						plancheck.ExpectResourceAction(builder.ResourceAddress("mesh", mesh.ResourceName), plancheck.ResourceActionUpdate),
@@ -59,7 +65,7 @@ func CreateMeshAndModifyFieldsOnIt(
 			},
 			CheckReapplyPlanEmpty(builder),
 			{
-				Config: builder.AddMesh(mesh.RemoveFromSpec(`constraints = { dataplane_proxy = { requirements = [] } }`)).Build(),
+				Config: builder.AddMesh(mesh.RemoveFromSpec(`requirements = []`)).Build(),
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
 						// since we use default of [] this is a noop and not an update

@@ -1,11 +1,10 @@
 package tfbuilder
 
 import (
-	"log"
 	"strings"
 )
 
-func addToSpec(spec string, after, newLine string) string {
+func addToSpec(spec, after, newLine string) string {
 	lines := strings.Split(spec, "\n")
 	var result []string
 	inserted := false
@@ -21,8 +20,9 @@ func addToSpec(spec string, after, newLine string) string {
 		}
 	}
 
+	// If "after" not found, just append at end
 	if !inserted {
-		log.Fatalf("AddToSpec failed: could not find line containing: %q", after)
+		result = append(result, newLine)
 	}
 
 	return strings.Join(result, "\n")

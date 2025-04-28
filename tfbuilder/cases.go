@@ -26,7 +26,7 @@ func CreateMeshAndModifyFieldsOnIt(
 			},
 			CheckReapplyPlanEmpty(builder),
 			{
-				Config: builder.AddMesh(mesh.WithSpec(`
+				Config: builder.AddMesh(mesh.AddToSpec("at the end", `
   constraints = {
     dataplane_proxy = {
       requirements = [ { tags = { key = "a" } } ]

@@ -5,7 +5,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/plancheck"
 )
 
-func CheckReapplyPlanEmpty(builder *Builder) resource.TestStep {
+func CheckReapplyPlanEmpty(builder OnlyBuild) resource.TestStep {
 	return resource.TestStep{
 		// Re-apply the same config and ensure no changes occur
 		Config: builder.Build(),

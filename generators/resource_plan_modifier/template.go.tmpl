@@ -28,14 +28,26 @@ func (r *{{.ResourceName}}Resource) ModifyPlan(
 		return
 	}
 
+	{{- if .NotMeshScopedResource }}
 	if plannedResource.Name.IsUnknown() || plannedResource.Mesh.IsUnknown() {
 		return
 	}
+	{{- else }}
+	if plannedResource.Name.IsUnknown() {
+		return
+	}
+	{{- end }}
 
+	{{- if .NotMeshScopedResource }}
 	res, err := r.client.{{.ResourceName}}.Get{{.ResourceName}}(ctx, operations.Get{{.ResourceName}}Request{
 		Name: plannedResource.Name.ValueString(),
 		Mesh: plannedResource.Mesh.ValueString(),
 	})
+	{{- else }}
+	res, err := r.client.Mesh.GetMesh(ctx, operations.GetMeshRequest{
+		Name: plannedResource.Name.ValueString(),
+	})
+	{{- end }}
 
 	if err != nil {
 		var sdkError *sdkerrors.SDKError
@@ -61,7 +73,11 @@ func (r *{{.ResourceName}}Resource) ModifyPlan(
 	if res.StatusCode != http.StatusNotFound {
 		resp.Diagnostics.AddError(
 			"{{.ResourceName}} already exists",
+			{{- if .NotMeshScopedResource }}
 			"A resource with the name "+plannedResource.Name.String()+" already exists in the mesh "+plannedResource.Mesh.String()+" - to be managed via Terraform it needs to be imported first",
+			{{- else }}
+			"A resource with the name "+plannedResource.Name.String()+" already exists - to be managed via Terraform it needs to be imported first",
+			{{- end }}
 		)
 	}
 }

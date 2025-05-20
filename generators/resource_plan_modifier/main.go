@@ -12,10 +12,11 @@ import (
 var embeddedTemplateFS embed.FS
 
 type TemplateParams struct {
-	ResourceName      string // e.g., MeshTrafficPermission
-	ResourceVarName   string // e.g., meshTrafficPermission
-	ResourceModelName string // e.g., MeshTrafficPermissionResourceModel
-	ProviderName      string // e.g., terraform-provider-kong-mesh
+	ResourceName          string // e.g., MeshTrafficPermission
+	ResourceVarName       string // e.g., meshTrafficPermission
+	ResourceModelName     string // e.g., MeshTrafficPermissionResourceModel
+	ProviderName          string // e.g., terraform-provider-kong-mesh
+	NotMeshScopedResource bool
 }
 
 func toLowerCamel(s string) string {
@@ -36,10 +37,11 @@ func main() {
 	providerName := os.Args[3]
 
 	params := TemplateParams{
-		ResourceName:      resourceName,
-		ResourceVarName:   toLowerCamel(resourceName),
-		ResourceModelName: resourceName + "ResourceModel",
-		ProviderName:      providerName,
+		ResourceName:          resourceName,
+		ResourceVarName:       toLowerCamel(resourceName),
+		ResourceModelName:     resourceName + "ResourceModel",
+		ProviderName:          providerName,
+		NotMeshScopedResource: !(resourceName == "Mesh" || resourceName == "MeshHostnameGenerator"),
 	}
 
 	tmplContent, err := embeddedTemplateFS.ReadFile("template.go.tmpl")

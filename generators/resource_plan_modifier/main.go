@@ -8,10 +8,10 @@ import (
 )
 
 type TemplateParams struct {
-	ResourceName      string // e.g. MeshTrafficPermission
-	ResourceVarName   string // e.g. meshTrafficPermission
-	ResourceModelName string // e.g. MeshTrafficPermissionResourceModel
-	ProviderName      string // e.g. terraform-provider-kong-mesh
+	ResourceName      string // e.g., MeshTrafficPermission
+	ResourceVarName   string // e.g., meshTrafficPermission
+	ResourceModelName string // e.g., MeshTrafficPermissionResourceModel
+	ProviderName      string // e.g., terraform-provider-kong-mesh
 }
 
 func toLowerCamel(s string) string {
@@ -23,7 +23,7 @@ func toLowerCamel(s string) string {
 
 func main() {
 	if len(os.Args) != 5 {
-		fmt.Println("Usage: go run main.go <templatePath> <outputPath> <ResourceName> <ProviderName>")
+		fmt.Println("Usage: go run main.go <templatePath> <outputPath or -> <ResourceName> <ProviderName>")
 		os.Exit(1)
 	}
 
@@ -41,27 +41,34 @@ func main() {
 
 	tmplContent, err := os.ReadFile(templatePath)
 	if err != nil {
-		fmt.Printf("Error reading template file: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error reading template file: %v\n", err)
 		os.Exit(1)
 	}
 
 	tmpl, err := template.New("planmod").Parse(string(tmplContent))
 	if err != nil {
-		fmt.Printf("Error parsing template: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error parsing template: %v\n", err)
 		os.Exit(1)
 	}
 
-	outFile, err := os.Create(outputPath)
-	if err != nil {
-		fmt.Printf("Error creating output file: %v\n", err)
+	var output *os.File
+	if outputPath == "-" {
+		output = os.Stdout
+	} else {
+		output, err = os.Create(outputPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error creating output file: %v\n", err)
+			os.Exit(1)
+		}
+		defer output.Close()
+	}
+
+	if err := tmpl.Execute(output, params); err != nil {
+		fmt.Fprintf(os.Stderr, "Error executing template: %v\n", err)
 		os.Exit(1)
 	}
-	defer outFile.Close()
 
-	if err := tmpl.Execute(outFile, params); err != nil {
-		fmt.Printf("Error executing template: %v\n", err)
-		os.Exit(1)
+	if outputPath != "-" {
+		fmt.Printf("Generated plan modification code at: %s\n", outputPath)
 	}
-
-	fmt.Printf("Generated plan modification code at: %s\n", outputPath)
 }

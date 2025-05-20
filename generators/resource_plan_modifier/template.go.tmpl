@@ -59,13 +59,9 @@ func (r *{{.ResourceName}}Resource) ModifyPlan(
 	}
 
 	if res.StatusCode != http.StatusNotFound {
-		showAlreadyExistsError(resp, plannedResource)
+		resp.Diagnostics.AddError(
+			"{{.ResourceName}} already exists",
+			"A resource with the name "+plannedResource.Name.String()+" already exists in the mesh "+plannedResource.Mesh.String()+" - to be managed via Terraform it needs to be imported first",
+		)
 	}
-}
-
-func showAlreadyExistsError(resp *resource.ModifyPlanResponse, plannedResource {{.ResourceModelName}}) {
-	resp.Diagnostics.AddError(
-		"{{.ResourceName}} already exists",
-		"A resource with the name "+plannedResource.Name.String()+" already exists in the mesh "+plannedResource.Mesh.String()+" - to be managed via Terraform it needs to be imported first",
-	)
 }

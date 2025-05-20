@@ -1,11 +1,15 @@
 package main
 
 import (
+	"embed"
 	"fmt"
 	"os"
 	"strings"
 	"text/template"
 )
+
+//go:embed template.go.tmpl
+var embeddedTemplateFS embed.FS
 
 type TemplateParams struct {
 	ResourceName      string // e.g., MeshTrafficPermission
@@ -22,15 +26,14 @@ func toLowerCamel(s string) string {
 }
 
 func main() {
-	if len(os.Args) != 5 {
-		fmt.Println("Usage: go run main.go <templatePath> <outputPath or -> <ResourceName> <ProviderName>")
+	if len(os.Args) != 4 {
+		fmt.Println("Usage: go run main.go <outputPath or -> <ResourceName> <ProviderName>")
 		os.Exit(1)
 	}
 
-	templatePath := os.Args[1]
-	outputPath := os.Args[2]
-	resourceName := os.Args[3]
-	providerName := os.Args[4]
+	outputPath := os.Args[1]
+	resourceName := os.Args[2]
+	providerName := os.Args[3]
 
 	params := TemplateParams{
 		ResourceName:      resourceName,
@@ -39,9 +42,9 @@ func main() {
 		ProviderName:      providerName,
 	}
 
-	tmplContent, err := os.ReadFile(templatePath)
+	tmplContent, err := embeddedTemplateFS.ReadFile("template.go.tmpl")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading template file: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error reading embedded template: %v\n", err)
 		os.Exit(1)
 	}
 

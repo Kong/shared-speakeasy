@@ -42,7 +42,11 @@ func (r *{{.ResourceName}}Resource) ModifyPlan(
 	}
 	{{- end }}
 
+	{{- if eq .ResourceName "MeshHostnameGenerator" }}
+	request := operations.GetHostnameGeneratorRequest{
+	{{- else }}
 	request := operations.Get{{.ResourceName}}Request{
+	{{- end }}
 		Name: plannedResource.Name.ValueString(),
 	}
 	{{- if .MeshScopedResource }}
@@ -51,7 +55,11 @@ func (r *{{.ResourceName}}Resource) ModifyPlan(
 	{{- if .CPScopedResource }}
 	request.CpID = plannedResource.CpID.ValueString()
 	{{- end }}
+	{{- if eq .ResourceName "MeshHostnameGenerator" }}
+	res, err := r.client.HostnameGenerator.GetHostnameGenerator(ctx, request)
+	{{- else }}
 	res, err := r.client.{{.ResourceName}}.Get{{.ResourceName}}(ctx, request)
+	{{- end }}
 
 	if err != nil {
 		var sdkError *sdkerrors.SDKError

@@ -6,6 +6,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
 	"github.com/hashicorp/terraform-plugin-testing/plancheck"
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
+	"regexp"
 )
 
 func CreateMeshAndModifyFieldsOnIt(
@@ -116,6 +117,34 @@ func CreatePolicyAndModifyFieldsOnIt(
 				},
 			},
 			CheckReapplyPlanEmpty(builder),
+		},
+	}
+}
+
+func NotImportedResourceShouldErrorOutWithMeaningfulMessage(
+	providerFactory map[string]func() (tfprotov6.ProviderServer, error),
+	builder ModifyPolicyBuilder,
+	mtp *PolicyBuilder,
+	preConfigFn func(),
+) resource.TestCase {
+	expectedErr := regexp.MustCompile(`MeshTrafficPermission already exists`)
+
+	return resource.TestCase{
+		ProtoV6ProviderFactories: providerFactory,
+		Steps: []resource.TestStep{
+			{
+				Config: builder.Build(),
+			},
+			{
+				PreConfig:   preConfigFn,
+				Config:      builder.AddPolicy(mtp.WithSpec(AllowAllTrafficPermissionSpec)).Build(),
+				ExpectError: expectedErr,
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction(builder.ResourceAddress(mtp.ResourceType, mtp.ResourceName), plancheck.ResourceActionCreate),
+					},
+				},
+			},
 		},
 	}
 }

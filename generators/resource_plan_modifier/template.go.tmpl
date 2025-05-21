@@ -42,7 +42,7 @@ func (r *{{.ResourceName}}Resource) ModifyPlan(
 	}
 	{{- end }}
 
-	request := operations.GetMeshTrafficPermissionRequest{
+	request := operations.Get{{.ResourceName}}Request{
 		Name: plannedResource.Name.ValueString(),
 	}
 	{{- if .MeshScopedResource }}

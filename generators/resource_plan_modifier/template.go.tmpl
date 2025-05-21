@@ -28,26 +28,30 @@ func (r *{{.ResourceName}}Resource) ModifyPlan(
 		return
 	}
 
-	{{- if .NotMeshScopedResource }}
-	if plannedResource.Name.IsUnknown() || plannedResource.Mesh.IsUnknown() {
+	if plannedResource.Name.IsUnknown() {
 		return
 	}
-	{{- else }}
-	if plannedResource.Name.IsUnknown() {
+	{{- if .MeshScopedResource }}
+	if plannedResource.Mesh.IsUnknown() {
+		return
+	}
+	{{- end }}
+	{{- if .CPScopedResource }}
+	if plannedResource.CpID.IsUnknown() {
 		return
 	}
 	{{- end }}
 
-	{{- if .NotMeshScopedResource }}
-	res, err := r.client.{{.ResourceName}}.Get{{.ResourceName}}(ctx, operations.Get{{.ResourceName}}Request{
+	request := operations.GetMeshTrafficPermissionRequest{
 		Name: plannedResource.Name.ValueString(),
-		Mesh: plannedResource.Mesh.ValueString(),
-	})
-	{{- else }}
-	res, err := r.client.Mesh.GetMesh(ctx, operations.GetMeshRequest{
-		Name: plannedResource.Name.ValueString(),
-	})
+	}
+	{{- if .MeshScopedResource }}
+	request.Mesh = plannedResource.Mesh.ValueString()
 	{{- end }}
+	{{- if .CPScopedResource }}
+	request.CpID = plannedResource.CpID.ValueString()
+	{{- end }}
+	res, err := r.client.{{.ResourceName}}.Get{{.ResourceName}}(ctx, request)
 
 	if err != nil {
 		var sdkError *sdkerrors.SDKError
@@ -73,7 +77,7 @@ func (r *{{.ResourceName}}Resource) ModifyPlan(
 	if res.StatusCode != http.StatusNotFound {
 		resp.Diagnostics.AddError(
 			"{{.ResourceName}} already exists",
-			{{- if .NotMeshScopedResource }}
+			{{- if .MeshScopedResource }}
 			"A resource with the name "+plannedResource.Name.String()+" already exists in the mesh "+plannedResource.Mesh.String()+" - to be managed via Terraform it needs to be imported first",
 			{{- else }}
 			"A resource with the name "+plannedResource.Name.String()+" already exists - to be managed via Terraform it needs to be imported first",

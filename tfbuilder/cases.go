@@ -127,7 +127,7 @@ func NotImportedResourceShouldErrorOutWithMeaningfulMessage(
 	mtp *PolicyBuilder,
 	preConfigFn func(),
 ) resource.TestCase {
-	expectedErr, _ := regexp.Compile(`MeshTrafficPermission already exists`)
+	expectedErr := regexp.MustCompile(`MeshTrafficPermission already exists`)
 
 	return resource.TestCase{
 		ProtoV6ProviderFactories: providerFactory,

@@ -76,7 +76,7 @@ func TestKumaLabelsMapType_ValueFromMap(t *testing.T) {
 			filteredVal, diags := labelType.ValueFromMap(ctx, inputMap)
 			require.False(t, diags.HasError(), "unexpected diagnostics error: %v", diags)
 
-			filteredMap, diags := filteredVal.ToMapValue(t.Context())
+			filteredMap, diags := filteredVal.ToMapValue(ctx)
 			require.False(t, diags.HasError(), "unexpected diagnostics error: %v", diags)
 
 			output := make(map[string]string)

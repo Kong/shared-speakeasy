@@ -8,10 +8,20 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
-	"github.com/kumahq/kuma/pkg/core/resources/model/labels"
 )
 
 var _ basetypes.MapTypable = KumaLabelsMapType{}
+
+// taken from https://github.com/kumahq/kuma/blob/99d5d12d1a67c76ec3d4f992486900b970f85a10/pkg/core/resources/model/labels/labels.go#L8
+var AllComputedLabels = map[string]struct{}{
+	"kuma.io/mesh":          {},
+	"kuma.io/origin":        {},
+	"kuma.io/zone":          {},
+	"kuma.io/env":           {},
+	"k8s.kuma.io/namespace": {},
+	"kuma.io/policy-role":   {},
+	"kuma.io/proxy-type":    {},
+}
 
 type KumaLabelsMapType struct {
 	basetypes.MapType
@@ -32,7 +42,7 @@ func (t KumaLabelsMapType) Equal(o attr.Type) bool {
 func (t KumaLabelsMapType) ValueFromMap(ctx context.Context, in basetypes.MapValue) (basetypes.MapValuable, diag.Diagnostics) {
 	filteredElements := make(map[string]attr.Value)
 	for key, val := range in.Elements() {
-		if _, ok := labels.AllComputedLabels[key]; !ok {
+		if _, ok := AllComputedLabels[key]; !ok {
 			filteredElements[key] = val
 		}
 	}

@@ -1,6 +1,6 @@
 module github.com/Kong/shared-speakeasy/customtypes
 
-go 1.24.2
+go 1.23.4
 
 toolchain go1.24.3
 

@@ -102,8 +102,7 @@ func BeforeRequest(apiPrefix string, features bool, initialPolicies bool) func(r
 				req.ContentLength = int64(len(newBody))
 				req.Header.Set("Content-Type", "application/json")
 			}
-
-			return req, nil
 		}
+		return req, nil
 	}
 }

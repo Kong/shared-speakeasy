@@ -62,7 +62,7 @@ func BeforeRequest(apiPrefix string, features bool, initialPolicies bool) func(r
 
 		if initialPolicies {
 			// Check for requests matching POST: apiPrefix/*/api/meshes/*
-			match, err := regexp.MatchString(`^`+apiPrefix+`/[^/]+/api/meshes/[^/]+$`, req.URL.Path)
+			match, err := regexp.MatchString(`^`+apiPrefix+`/meshes/[^/]+$`, req.URL.Path)
 			if err != nil {
 				return nil, err
 			}

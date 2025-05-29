@@ -103,7 +103,7 @@ func BeforeRequest(apiPrefix string, features bool, initialPolicies bool) func(r
 				req.Header.Set("Content-Type", "application/json")
 			}
 
-			return req, nil
 		}
+		return req, nil
 	}
 }

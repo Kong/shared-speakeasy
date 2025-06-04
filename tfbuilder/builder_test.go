@@ -33,6 +33,13 @@ func TestBuilder_KongMeshWithPolicy(t *testing.T) {
 			RemoveFromSpec(`action = "Allow"`),
 	)
 
+	// Add policy without labels
+	builder.AddPolicy(
+		tfbuilder.NewPolicyBuilder("mesh_traffic_permission", "empty", "empty", "MeshTrafficPermission").
+			WithMeshRef("kong-mesh_mesh.default.name").
+			WithDependsOn("kong-mesh_mesh.default"),
+	)
+
 	actual := builder.Build()
 
 	goldenFile := filepath.Join("testdata", "expected_kong_mesh_with_policy.tf")

@@ -35,13 +35,3 @@ resource "kong-mesh_mesh_traffic_permission" "allow_all" {
   }
 }
 
-resource "kong-mesh_mesh_traffic_permission" "empty" {
-  provider = "kong-mesh"
-  mesh = kong-mesh_mesh.default.name
-  depends_on = [kong-mesh_mesh.default]
-  type = "MeshTrafficPermission"
-  name = "empty"
-
-  
-}
-

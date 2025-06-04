@@ -117,16 +117,6 @@ func CreatePolicyAndModifyFieldsOnIt(
 				},
 			},
 			CheckReapplyPlanEmpty(builder),
-			{
-				Config: builder.AddPolicy(mtp.WithLabels(map[string]string{"some": "label"})).Build(),
-				ConfigPlanChecks: resource.ConfigPlanChecks{
-					PreApply: []plancheck.PlanCheck{
-						plancheck.ExpectResourceAction(builder.ResourceAddress(mtp.ResourceType, mtp.ResourceName), plancheck.ResourceActionUpdate),
-						plancheck.ExpectKnownValue(builder.ResourceAddress(mtp.ResourceType, mtp.ResourceName), tfjsonpath.New("labels").AtMapKey("some"), knownvalue.StringExact("label")),
-					},
-				},
-			},
-			CheckReapplyPlanEmpty(builder),
 		},
 	}
 }

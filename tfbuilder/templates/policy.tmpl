@@ -11,13 +11,11 @@ resource "{{.Provider}}_{{.ResourceType}}" "{{.ResourceName}}" {
   {{- if .DependsOn }}
   depends_on = [{{range $i, $v := .DependsOn}}{{if $i}}, {{end}}{{$v}}{{end}}]
   {{- end }}
-  {{- if .Labels }}
   labels = {
   {{- range $k, $v := .Labels }}
     "{{ $k }}" = "{{ $v }}"
   {{- end }}
   }
-  {{- end }}
   type = "{{.Type}}"
   name = "{{.Name}}"
 

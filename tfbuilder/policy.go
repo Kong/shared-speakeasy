@@ -38,6 +38,7 @@ func NewPolicyBuilder(resourceType, resourceName, policyName, policyType string)
 		ResourceName: resourceName,
 		PolicyName:   policyName,
 		Type:         policyType,
+		Labels:       make(map[string]string),
 	}
 }
 

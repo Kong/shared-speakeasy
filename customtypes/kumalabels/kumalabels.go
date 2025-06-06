@@ -40,6 +40,10 @@ func (t KumaLabelsMapType) Equal(o attr.Type) bool {
 }
 
 func (t KumaLabelsMapType) ValueFromMap(ctx context.Context, in basetypes.MapValue) (basetypes.MapValuable, diag.Diagnostics) {
+	if in.IsNull() {
+		return KumaLabelsMapValue{MapValue: basetypes.NewMapNull(types.StringType)}, nil
+	}
+
 	filteredElements := make(map[string]attr.Value)
 	for key, val := range in.Elements() {
 		if _, ok := AllComputedLabels[key]; !ok {
@@ -56,6 +60,10 @@ func (t KumaLabelsMapType) ValueFromMap(ctx context.Context, in basetypes.MapVal
 }
 
 func (t KumaLabelsMapType) ValueFromTerraform(ctx context.Context, in tftypes.Value) (attr.Value, error) {
+	if !in.IsKnown() || in.IsNull() {
+		return KumaLabelsMapValue{MapValue: basetypes.NewMapNull(types.StringType)}, nil
+	}
+
 	attrValue, err := t.MapType.ValueFromTerraform(ctx, in)
 	if err != nil {
 		return nil, err

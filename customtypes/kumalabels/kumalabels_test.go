@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/Kong/shared-speakeasy/customtypes/kumalabels"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -57,6 +58,16 @@ func TestKumaLabelsMapType_ValueFromMap(t *testing.T) {
 			},
 			expectedOutput: map[string]string{},
 		},
+		{
+			name:           "input is nil — expect nil",
+			input:          nil,
+			expectedOutput: nil,
+		},
+		{
+			name:           "input is empty map — expect empty map",
+			input:          map[string]string{},
+			expectedOutput: map[string]string{},
+		},
 	}
 
 	labelType := kumalabels.KumaLabelsMapType{
@@ -67,11 +78,14 @@ func TestKumaLabelsMapType_ValueFromMap(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			elements := make(map[string]attr.Value)
-			for k, v := range tc.input {
-				elements[k] = types.StringValue(v)
+			var inputMap basetypes.MapValue
+			if tc.input != nil {
+				elements := make(map[string]attr.Value)
+				for k, v := range tc.input {
+					elements[k] = types.StringValue(v)
+				}
+				inputMap = types.MapValueMust(types.StringType, elements)
 			}
-			inputMap := types.MapValueMust(types.StringType, elements)
 
 			filteredVal, diags := labelType.ValueFromMap(ctx, inputMap)
 			require.False(t, diags.HasError(), "unexpected diagnostics error: %v", diags)
@@ -79,10 +93,13 @@ func TestKumaLabelsMapType_ValueFromMap(t *testing.T) {
 			filteredMap, diags := filteredVal.ToMapValue(ctx)
 			require.False(t, diags.HasError(), "unexpected diagnostics error: %v", diags)
 
-			output := make(map[string]string)
-			for k, v := range filteredMap.Elements() {
-				strVal := v.(types.String)
-				output[k] = strVal.ValueString()
+			var output map[string]string
+			if !filteredMap.IsNull() {
+				output = make(map[string]string)
+				for k, v := range filteredMap.Elements() {
+					strVal := v.(types.String)
+					output[k] = strVal.ValueString()
+				}
 			}
 
 			require.Equal(t, tc.expectedOutput, output)

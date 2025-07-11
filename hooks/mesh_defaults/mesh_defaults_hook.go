@@ -12,7 +12,7 @@ import (
 // for mesh - the "skipCreatingInitialPolicies" field to include "*".
 func BeforeRequest(matchFeatureRequest func(r *http.Request) bool, matchPoliciesRequest func(r *http.Request) bool) func(req *http.Request) (*http.Request, error) {
 	return func(req *http.Request) (*http.Request, error) {
-		if req.Method == http.MethodPost && matchFeatureRequest(req) {
+		if matchFeatureRequest(req) {
 			var bodyMap map[string]interface{}
 
 			if req.Body != nil {

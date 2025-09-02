@@ -43,7 +43,7 @@ jobs:
 
           echo "✅ Inputs validated: module='$MODULE', version='$VERSION'"
       - name: Create tag and GitHub release
-        uses: ncipollo/release-action@440c8c1cb0ed28b9f43e4d1d670870f059653174 # v1.16.0
+        uses: ncipollo/release-action@b12185d71f4641bb1b1116dacae6b74e667f86e4 # v1.19.0
         with:
           tag: ${{ github.event.inputs.module }}/${{ github.event.inputs.version }}
           name: Release ${{ github.event.inputs.module }} ${{ github.event.inputs.version }}

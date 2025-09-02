@@ -3,15 +3,14 @@ module github.com/Kong/shared-speakeasy/customtypes
 go 1.23.4
 
 require (
-	github.com/hashicorp/terraform-plugin-framework v1.14.1
-	github.com/hashicorp/terraform-plugin-go v0.26.0
+	github.com/hashicorp/terraform-plugin-framework v1.15.1
+	github.com/hashicorp/terraform-plugin-go v0.27.0
 	github.com/stretchr/testify v1.11.1
 )
 
 require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/fatih/color v1.18.0 // indirect
-	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/hashicorp/go-hclog v1.5.0 // indirect
 	github.com/hashicorp/terraform-plugin-log v0.9.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect

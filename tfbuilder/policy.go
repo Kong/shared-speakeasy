@@ -18,6 +18,7 @@ const AllowAllTrafficPermissionSpec = `
         }
       }
     ]
+	rules = []
   }`
 
 type PolicyBuilder struct {

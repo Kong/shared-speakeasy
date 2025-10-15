@@ -3,11 +3,14 @@ package provider
 import (
 	"context"
 	"errors"
-	"github.com/hashicorp/terraform-plugin-framework/resource"
-	sdkerrors "github.com/kong/{{.ProviderName}}/internal/sdk/models/errors"
-	"github.com/kong/{{.ProviderName}}/internal/sdk/models/operations"
 	"net/http"
 	"strconv"
+
+	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+	sdkerrors "github.com/kong/{{.ProviderName}}/internal/sdk/models/errors"
+	"github.com/kong/{{.ProviderName}}/internal/sdk/models/operations"
 )
 
 var _ resource.ResourceWithModifyPlan = &{{.ResourceName}}Resource{}
@@ -21,23 +24,34 @@ func (r *{{.ResourceName}}Resource) ModifyPlan(
 		return
 	}
 
-	var plannedResource {{.ResourceModelName}}
-	diags := req.Plan.Get(ctx, &plannedResource)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	if plannedResource.Name.IsUnknown() {
+	var name types.String
+	if diags := req.Plan.GetAttribute(ctx, path.Root("name"), &name); diags.HasError() {
+		resp.Diagnostics.Append(diags...)
 		return
 	}
 	{{- if .MeshScopedResource }}
-	if plannedResource.Mesh.IsUnknown() {
+	var mesh types.String
+	if diags := req.Plan.GetAttribute(ctx, path.Root("mesh"), &mesh); diags.HasError() {
+		resp.Diagnostics.Append(diags...)
+		return
+	}
+	{{- end }}
+	var cpID types.String
+	if diags := req.Plan.GetAttribute(ctx, path.Root("cp_id"), &cpID); diags.HasError() {
+		resp.Diagnostics.Append(diags...)
+		return
+	}
+
+	if name.IsUnknown() {
+		return
+	}
+	{{- if .MeshScopedResource }}
+	if mesh.IsUnknown() {
 		return
 	}
 	{{- end }}
 	{{- if .CPScopedResource }}
-	if plannedResource.CpID.IsUnknown() {
+	if cpID.IsUnknown() {
 		return
 	}
 	{{- end }}
@@ -47,13 +61,13 @@ func (r *{{.ResourceName}}Resource) ModifyPlan(
 	{{- else }}
 	request := operations.Get{{.ResourceName}}Request{
 	{{- end }}
-		Name: plannedResource.Name.ValueString(),
+		Name: name.ValueString(),
 	}
 	{{- if .MeshScopedResource }}
-	request.Mesh = plannedResource.Mesh.ValueString()
+	request.Mesh = mesh.ValueString()
 	{{- end }}
 	{{- if .CPScopedResource }}
-	request.CpID = plannedResource.CpID.ValueString()
+	request.CpID = cpID.ValueString()
 	{{- end }}
 	{{- if eq .ResourceName "MeshHostnameGenerator" }}
 	res, err := r.client.HostnameGenerator.GetHostnameGenerator(ctx, request)
@@ -86,9 +100,9 @@ func (r *{{.ResourceName}}Resource) ModifyPlan(
 		resp.Diagnostics.AddError(
 			"{{.ResourceName}} already exists",
 			{{- if .MeshScopedResource }}
-			"A resource with the name "+plannedResource.Name.String()+" already exists in the mesh "+plannedResource.Mesh.String()+" - to be managed via Terraform it needs to be imported first",
+			"A resource with the name "+name.String()+" already exists in the mesh "+mesh.String()+" - to be managed via Terraform it needs to be imported first",
 			{{- else }}
-			"A resource with the name "+plannedResource.Name.String()+" already exists - to be managed via Terraform it needs to be imported first",
+			"A resource with the name "+name.String()+" already exists - to be managed via Terraform it needs to be imported first",
 			{{- end }}
 		)
 	}

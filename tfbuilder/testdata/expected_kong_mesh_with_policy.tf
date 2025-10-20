@@ -32,6 +32,7 @@ resource "kong-mesh_mesh_traffic_permission" "allow_all" {
         }
       }
     ]
+    rules = []
   }
 }
 

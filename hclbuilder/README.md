@@ -21,7 +21,7 @@ import "github.com/Kong/shared-speakeasy/hclbuilder"
 
 builder := hclbuilder.New()
 builder.SetAttribute("variable.name.default", "my-value")
-builder.SetBlock("resource.aws_instance.web", map[string]interface{}{
+builder.SetBlock("resource.aws_instance.web", map[string]any{
     "ami": "ami-123456",
     "instance_type": "t2.micro",
 })
@@ -58,15 +58,15 @@ builder.SetAttribute("variable.count.default", 5)
 
 ```go
 // Simple block
-builder.SetBlock("resource.aws_instance.web", map[string]interface{}{
+builder.SetBlock("resource.aws_instance.web", map[string]any{
     "ami": "ami-123456",
     "instance_type": "t2.micro",
 })
 
 // Nested blocks (maps are treated as nested blocks)
-builder.SetBlock("resource.aws_security_group.example", map[string]interface{}{
+builder.SetBlock("resource.aws_security_group.example", map[string]any{
     "name": "example",
-    "ingress": map[string]interface{}{
+    "ingress": map[string]any{
         "from_port": 80,
         "to_port": 80,
         "protocol": "tcp",
@@ -93,8 +93,8 @@ builder.RemoveBlock("resource.aws_instance.old")
 
 - `Build() string` - Generate HCL string
 - `WriteFile(path string) error` - Write to file
-- `SetAttribute(path string, value interface{})` - Set attribute value
-- `SetBlock(path string, attributes map[string]interface{})` - Create/replace block
+- `SetAttribute(path string, value any)` - Set attribute value
+- `SetBlock(path string, attributes map[string]any)` - Create/replace block
 - `RemoveAttribute(path string)` - Remove attribute
 - `RemoveBlock(path string)` - Remove block
 

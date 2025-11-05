@@ -64,7 +64,7 @@ func TestSetAttribute_Multiple(t *testing.T) {
 
 func TestSetBlock_Simple(t *testing.T) {
 	builder := hclbuilder.New()
-	builder.SetBlock("resource.aws_instance.web", map[string]interface{}{
+	builder.SetBlock("resource.aws_instance.web", map[string]any{
 		"ami":           "ami-123456",
 		"instance_type": "t2.micro",
 	})
@@ -76,9 +76,9 @@ func TestSetBlock_Simple(t *testing.T) {
 
 func TestSetBlock_Nested(t *testing.T) {
 	builder := hclbuilder.New()
-	builder.SetBlock("resource.aws_security_group.example", map[string]interface{}{
+	builder.SetBlock("resource.aws_security_group.example", map[string]any{
 		"name": "example",
-		"ingress": map[string]interface{}{
+		"ingress": map[string]any{
 			"from_port":   80,
 			"to_port":     80,
 			"protocol":    "tcp",
@@ -104,10 +104,10 @@ func TestRemoveAttribute(t *testing.T) {
 
 func TestRemoveBlock(t *testing.T) {
 	builder := hclbuilder.New()
-	builder.SetBlock("resource.aws_instance.web", map[string]interface{}{
+	builder.SetBlock("resource.aws_instance.web", map[string]any{
 		"ami": "ami-123",
 	})
-	builder.SetBlock("resource.aws_instance.old", map[string]interface{}{
+	builder.SetBlock("resource.aws_instance.old", map[string]any{
 		"ami": "ami-old",
 	})
 	builder.RemoveBlock("resource.aws_instance.old")

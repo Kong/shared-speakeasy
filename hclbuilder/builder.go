@@ -3,6 +3,7 @@ package hclbuilder
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
@@ -47,10 +48,13 @@ func (b *Builder) WriteFile(path string) error {
 	return os.WriteFile(path, b.file.Bytes(), 0o600)
 }
 
-// SetAttribute sets an attribute value at the given path
-// Path format: "block_type.block_label.attribute_name" or nested paths
-// Example: "variable.name.default" sets variable "name" { default = value }
-func (b *Builder) SetAttribute(path string, value interface{}) {
+// SetAttribute sets an attribute value at the given path.
+//
+// Path format: "block_type.block_label.attribute_name" or nested paths.
+// Example: "variable.name.default" sets variable "name" { default = value }.
+//
+// If the path is invalid (fewer than 3 parts), this method does nothing.
+func (b *Builder) SetAttribute(path string, value any) {
 	parts := strings.Split(path, ".")
 	if len(parts) < 3 {
 		// Need at least: block_type.block_label.attribute_name
@@ -84,10 +88,14 @@ func (b *Builder) SetAttribute(path string, value interface{}) {
 	}
 }
 
-// SetBlock creates or replaces a block with the given attributes
-// Path format: "block_type.block_label1.block_label2..."
-// Example: "resource.aws_instance.web"
-func (b *Builder) SetBlock(path string, attributes map[string]interface{}) {
+// SetBlock creates or replaces a block with the given attributes.
+//
+// Path format: "block_type.block_label1.block_label2...".
+// Example: "resource.aws_instance.web".
+//
+// If the path is invalid (fewer than 2 parts), this method does nothing.
+// Nested maps are treated as nested blocks.
+func (b *Builder) SetBlock(path string, attributes map[string]any) {
 	parts := strings.Split(path, ".")
 	if len(parts) < 2 {
 		return
@@ -106,7 +114,9 @@ func (b *Builder) SetBlock(path string, attributes map[string]interface{}) {
 	setBlockAttributes(block.Body(), attributes)
 }
 
-// RemoveAttribute removes an attribute at the given path
+// RemoveAttribute removes an attribute at the given path.
+//
+// If the path is invalid or the attribute doesn't exist, this method does nothing.
 func (b *Builder) RemoveAttribute(path string) {
 	parts := strings.Split(path, ".")
 	if len(parts) < 3 {
@@ -146,7 +156,9 @@ func (b *Builder) RemoveAttribute(path string) {
 	}
 }
 
-// RemoveBlock removes a block at the given path
+// RemoveBlock removes a block at the given path.
+//
+// If the path is invalid or the block doesn't exist, this method does nothing.
 func (b *Builder) RemoveBlock(path string) {
 	parts := strings.Split(path, ".")
 	if len(parts) < 2 {
@@ -197,10 +209,18 @@ func matchLabels(blockLabels, targetLabels []string) bool {
 	return true
 }
 
-func setBlockAttributes(body *hclwrite.Body, attributes map[string]interface{}) {
-	for key, value := range attributes {
+func setBlockAttributes(body *hclwrite.Body, attributes map[string]any) {
+	// Sort keys for deterministic output
+	keys := make([]string, 0, len(attributes))
+	for key := range attributes {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	for _, key := range keys {
+		value := attributes[key]
 		// Handle nested blocks (maps are treated as nested blocks)
-		if mapValue, ok := value.(map[string]interface{}); ok {
+		if mapValue, ok := value.(map[string]any); ok {
 			nestedBlock := body.AppendNewBlock(key, nil)
 			setBlockAttributes(nestedBlock.Body(), mapValue)
 		} else {
@@ -209,7 +229,7 @@ func setBlockAttributes(body *hclwrite.Body, attributes map[string]interface{}) 
 	}
 }
 
-func convertToCtyValue(value interface{}) cty.Value {
+func convertToCtyValue(value any) cty.Value {
 	switch v := value.(type) {
 	case string:
 		return cty.StringVal(v)
@@ -227,13 +247,13 @@ func convertToCtyValue(value interface{}) cty.Value {
 			vals[i] = cty.StringVal(s)
 		}
 		return cty.ListVal(vals)
-	case []interface{}:
+	case []any:
 		vals := make([]cty.Value, len(v))
 		for i, item := range v {
 			vals[i] = convertToCtyValue(item)
 		}
 		return cty.ListVal(vals)
-	case map[string]interface{}:
+	case map[string]any:
 		vals := make(map[string]cty.Value)
 		for k, item := range v {
 			vals[k] = convertToCtyValue(item)

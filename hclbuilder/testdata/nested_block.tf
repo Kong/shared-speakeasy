@@ -1,9 +1,12 @@
-resource "aws_security_group" "example" {
-  ingress {
-    cidr_blocks = ["0.0.0.0/0"]
-    from_port   = 80
-    protocol    = "tcp"
-    to_port     = 80
+resource "kong-mesh_mesh_traffic_permission" "allow_all" {
+  mesh = "kong-mesh_mesh.default.name"
+  name = "allow-all"
+  spec {
+    from = [{
+      target_ref = {
+        kind = "Mesh"
+      }
+    }]
   }
-  name = "example"
+  type = "MeshTrafficPermission"
 }

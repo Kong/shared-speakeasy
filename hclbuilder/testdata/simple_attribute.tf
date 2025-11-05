@@ -1,3 +1,2 @@
-variable "name" {
-  default = "test-value"
+resource "kong-mesh_mesh" {
 }

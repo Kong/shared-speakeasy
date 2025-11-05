@@ -38,6 +38,16 @@ func FromFile(path string) (*Builder, error) {
 	return &Builder{file: file}, nil
 }
 
+// FromString parses an HCL configuration from a string
+func FromString(content string) (*Builder, error) {
+	file, diags := hclwrite.ParseConfig([]byte(content), "<string>", hcl.Pos{Line: 1, Column: 1})
+	if diags.HasErrors() {
+		return nil, fmt.Errorf("parsing HCL: %s", diags.Error())
+	}
+
+	return &Builder{file: file}, nil
+}
+
 // Build returns the HCL configuration as a string
 func (b *Builder) Build() string {
 	return string(b.file.Bytes())

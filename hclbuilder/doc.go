@@ -7,10 +7,24 @@
 //
 //	// Create from scratch
 //	builder := hclbuilder.New()
-//	builder.SetAttribute("variable.region.default", "us-west-2")
-//	builder.SetBlock("resource.aws_instance.web", map[string]any{
-//	    "ami": "ami-123456",
-//	    "instance_type": "t2.micro",
+//	builder.SetBlock("resource.kong-mesh_mesh.default", map[string]any{
+//	    "type": "Mesh",
+//	    "name": "mesh-1",
+//	    "skip_creating_initial_policies": []string{"*"},
+//	})
+//	builder.SetBlock("resource.kong-mesh_mesh_traffic_permission.allow_all", map[string]any{
+//	    "type": "MeshTrafficPermission",
+//	    "name": "allow-all",
+//	    "mesh": "kong-mesh_mesh.default.name",
+//	    "spec": map[string]any{
+//	        "from": []any{
+//	            map[string]any{
+//	                "target_ref": map[string]any{
+//	                    "kind": "Mesh",
+//	                },
+//	            },
+//	        },
+//	    },
 //	})
 //	hcl := builder.Build()
 //
@@ -19,6 +33,6 @@
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
-//	builder.RemoveBlock("resource.aws_instance.old")
+//	builder.SetAttribute("resource.kong-mesh_mesh.default.skip_creating_initial_policies", []string{"*"})
 //	err = builder.WriteFile("main.tf")
 package hclbuilder

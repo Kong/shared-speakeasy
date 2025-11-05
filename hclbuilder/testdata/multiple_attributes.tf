@@ -1,7 +1,4 @@
-variable "name" {
-  default     = "my-name"
-  description = "A test variable"
+resource "kong-mesh_mesh" {
 }
-variable "count" {
-  default = 5
+resource "kong-mesh_mesh_traffic_permission" {
 }

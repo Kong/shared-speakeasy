@@ -44,7 +44,7 @@ func assertGoldenFile(t *testing.T, goldenFile string, actual string) {
 
 func TestSetAttribute_Simple(t *testing.T) {
 	builder := hclbuilder.New()
-	builder.SetAttribute("variable.name.default", "test-value")
+	builder.SetAttribute("resource.kong-mesh_mesh.default.name", "mesh-1")
 
 	result := builder.Build()
 	goldenFile := filepath.Join("testdata", "simple_attribute.tf")
@@ -53,9 +53,9 @@ func TestSetAttribute_Simple(t *testing.T) {
 
 func TestSetAttribute_Multiple(t *testing.T) {
 	builder := hclbuilder.New()
-	builder.SetAttribute("variable.name.default", "my-name")
-	builder.SetAttribute("variable.name.description", "A test variable")
-	builder.SetAttribute("variable.count.default", 5)
+	builder.SetAttribute("resource.kong-mesh_mesh.default.name", "mesh-1")
+	builder.SetAttribute("resource.kong-mesh_mesh.default.type", "Mesh")
+	builder.SetAttribute("resource.kong-mesh_mesh_traffic_permission.allow_all.mesh", "kong-mesh_mesh.default.name")
 
 	result := builder.Build()
 	goldenFile := filepath.Join("testdata", "multiple_attributes.tf")
@@ -64,9 +64,10 @@ func TestSetAttribute_Multiple(t *testing.T) {
 
 func TestSetBlock_Simple(t *testing.T) {
 	builder := hclbuilder.New()
-	builder.SetBlock("resource.aws_instance.web", map[string]any{
-		"ami":           "ami-123456",
-		"instance_type": "t2.micro",
+	builder.SetBlock("resource.kong-mesh_mesh.default", map[string]any{
+		"name":                           "mesh-1",
+		"type":                           "Mesh",
+		"skip_creating_initial_policies": []string{"*"},
 	})
 
 	result := builder.Build()
@@ -76,13 +77,18 @@ func TestSetBlock_Simple(t *testing.T) {
 
 func TestSetBlock_Nested(t *testing.T) {
 	builder := hclbuilder.New()
-	builder.SetBlock("resource.aws_security_group.example", map[string]any{
-		"name": "example",
-		"ingress": map[string]any{
-			"from_port":   80,
-			"to_port":     80,
-			"protocol":    "tcp",
-			"cidr_blocks": []string{"0.0.0.0/0"},
+	builder.SetBlock("resource.kong-mesh_mesh_traffic_permission.allow_all", map[string]any{
+		"name": "allow-all",
+		"type": "MeshTrafficPermission",
+		"mesh": "kong-mesh_mesh.default.name",
+		"spec": map[string]any{
+			"from": []any{
+				map[string]any{
+					"target_ref": map[string]any{
+						"kind": "Mesh",
+					},
+				},
+			},
 		},
 	})
 
@@ -93,9 +99,9 @@ func TestSetBlock_Nested(t *testing.T) {
 
 func TestRemoveAttribute(t *testing.T) {
 	builder := hclbuilder.New()
-	builder.SetAttribute("variable.name.default", "test")
-	builder.SetAttribute("variable.name.sensitive", true)
-	builder.RemoveAttribute("variable.name.sensitive")
+	builder.SetAttribute("resource.kong-mesh_mesh.default.name", "mesh-1")
+	builder.SetAttribute("resource.kong-mesh_mesh.default.type", "Mesh")
+	builder.RemoveAttribute("resource.kong-mesh_mesh.default.type")
 
 	result := builder.Build()
 	goldenFile := filepath.Join("testdata", "removed_attribute.tf")
@@ -104,13 +110,13 @@ func TestRemoveAttribute(t *testing.T) {
 
 func TestRemoveBlock(t *testing.T) {
 	builder := hclbuilder.New()
-	builder.SetBlock("resource.aws_instance.web", map[string]any{
-		"ami": "ami-123",
+	builder.SetBlock("resource.kong-mesh_mesh.default", map[string]any{
+		"name": "mesh-1",
 	})
-	builder.SetBlock("resource.aws_instance.old", map[string]any{
-		"ami": "ami-old",
+	builder.SetBlock("resource.kong-mesh_mesh_traffic_permission.old_policy", map[string]any{
+		"name": "old-policy",
 	})
-	builder.RemoveBlock("resource.aws_instance.old")
+	builder.RemoveBlock("resource.kong-mesh_mesh_traffic_permission.old_policy")
 
 	result := builder.Build()
 	goldenFile := filepath.Join("testdata", "removed_block.tf")
@@ -134,8 +140,11 @@ func TestFromFile_ModifyLoaded(t *testing.T) {
 	require.NoError(t, err)
 
 	// Modify the loaded configuration
-	builder.SetAttribute("variable.new_var.default", "added")
-	builder.RemoveBlock("resource.aws_instance.old")
+	builder.SetAttribute("resource.kong-mesh_mesh.default.skip_creating_initial_policies", []string{"*"})
+	builder.SetAttribute("resource.kong-mesh_mesh_traffic_permission.existing.type", "MeshTrafficPermission")
+	builder.SetBlock("resource.kong-mesh_mesh_traffic_permission.new_policy", map[string]any{
+		"name": "new-policy",
+	})
 
 	result := builder.Build()
 	goldenFile := filepath.Join("testdata", "modified_loaded.tf")
@@ -157,4 +166,27 @@ func TestWriteFile(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, string(content), "variable")
 	require.Contains(t, string(content), "test")
+}
+
+func TestFromString(t *testing.T) {
+	hclContent := `
+resource "kong-mesh_mesh" "default" {
+  name = "mesh-1"
+  type = "Mesh"
+}
+`
+	builder, err := hclbuilder.FromString(hclContent)
+	require.NoError(t, err)
+	require.NotNil(t, builder)
+
+	result := builder.Build()
+	require.Contains(t, result, "kong-mesh_mesh")
+	require.Contains(t, result, "mesh-1")
+}
+
+func TestFromString_Invalid(t *testing.T) {
+	invalidHCL := `resource "foo" {`
+	_, err := hclbuilder.FromString(invalidHCL)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "parsing HCL")
 }

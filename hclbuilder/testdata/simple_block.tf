@@ -1,4 +1,5 @@
-resource "aws_instance" "web" {
-  ami           = "ami-123456"
-  instance_type = "t2.micro"
+resource "kong-mesh_mesh" "default" {
+  name                           = "mesh-1"
+  skip_creating_initial_policies = ["*"]
+  type                           = "Mesh"
 }

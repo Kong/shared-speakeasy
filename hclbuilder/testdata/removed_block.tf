@@ -1,3 +1,3 @@
-resource "aws_instance" "web" {
-  ami = "ami-123"
+resource "kong-mesh_mesh" "default" {
+  name = "mesh-1"
 }

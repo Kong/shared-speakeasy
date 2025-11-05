@@ -1,13 +1,18 @@
 package hclbuilder
 
 import (
+	"fmt"
 	"regexp"
 
+	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
 	"github.com/hashicorp/terraform-plugin-testing/plancheck"
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
+	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/gocty"
 )
 
 // MeshConfig holds mesh configuration
@@ -43,56 +48,52 @@ func CreateMeshAndModifyFields(
 	builder := NewTestBuilder(meshConfig.Provider)
 	meshResourcePath := builder.ResourceAddress("mesh", meshConfig.ResourceName)
 
-	// Initial spec
-	initialSpec := map[string]any{
-		"skip_creating_initial_policies": []string{"*"},
-	}
+	// Initial config
+	initialConfig := builder.AddMesh(meshConfig.MeshName, meshConfig.ResourceName, mustParseSpec(`
+		skip_creating_initial_policies = ["*"]
+	`)).Build()
 
-	// Spec with additional fields
-	extendedSpec := map[string]any{
-		"skip_creating_initial_policies": []string{"*"},
-		"constraints": map[string]any{
-			"dataplane_proxy": map[string]any{
-				"requirements": []map[string]any{
-					{"tags": map[string]any{"key": "a"}},
-				},
-				"restrictions": []any{},
-			},
-		},
-		"routing": map[string]any{
-			"default_forbid_mesh_external_service_access": true,
-		},
-	}
+	// Extended config with additional fields
+	extendedConfig := builder.AddMesh(meshConfig.MeshName, meshConfig.ResourceName, mustParseSpec(`
+		skip_creating_initial_policies = ["*"]
+		constraints = {
+			dataplane_proxy = {
+				requirements = [{ tags = { key = "a" } }]
+				restrictions = []
+			}
+		}
+		routing = {
+			default_forbid_mesh_external_service_access = true
+		}
+	`)).Build()
 
-	// Spec with routing field removed
-	withoutRoutingSpec := map[string]any{
-		"skip_creating_initial_policies": []string{"*"},
-		"constraints": map[string]any{
-			"dataplane_proxy": map[string]any{
-				"requirements": []map[string]any{
-					{"tags": map[string]any{"key": "a"}},
-				},
-				"restrictions": []any{},
-			},
-		},
-	}
+	// Config with routing field removed
+	withoutRoutingConfig := builder.AddMesh(meshConfig.MeshName, meshConfig.ResourceName, mustParseSpec(`
+		skip_creating_initial_policies = ["*"]
+		constraints = {
+			dataplane_proxy = {
+				requirements = [{ tags = { key = "a" } }]
+				restrictions = []
+			}
+		}
+	`)).Build()
 
-	// Spec with requirements updated
-	updatedRequirementsSpec := map[string]any{
-		"skip_creating_initial_policies": []string{"*"},
-		"constraints": map[string]any{
-			"dataplane_proxy": map[string]any{
-				"requirements": []any{},
-				"restrictions": []any{},
-			},
-		},
-	}
+	// Config with requirements updated
+	updatedRequirementsConfig := builder.AddMesh(meshConfig.MeshName, meshConfig.ResourceName, mustParseSpec(`
+		skip_creating_initial_policies = ["*"]
+		constraints = {
+			dataplane_proxy = {
+				requirements = []
+				restrictions = []
+			}
+		}
+	`)).Build()
 
 	return resource.TestCase{
 		ProtoV6ProviderFactories: providerFactory,
 		Steps: []resource.TestStep{
 			{
-				Config: builder.AddMesh(meshConfig.MeshName, meshConfig.ResourceName, initialSpec).Build(),
+				Config: initialConfig,
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
 						plancheck.ExpectResourceAction(meshResourcePath, plancheck.ResourceActionCreate),
@@ -101,7 +102,7 @@ func CreateMeshAndModifyFields(
 			},
 			CheckReapplyPlanEmpty(builder),
 			{
-				Config: builder.AddMesh(meshConfig.MeshName, meshConfig.ResourceName, extendedSpec).Build(),
+				Config: extendedConfig,
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
 						plancheck.ExpectResourceAction(meshResourcePath, plancheck.ResourceActionUpdate),
@@ -110,7 +111,7 @@ func CreateMeshAndModifyFields(
 				},
 			},
 			{
-				Config: builder.AddMesh(meshConfig.MeshName, meshConfig.ResourceName, withoutRoutingSpec).Build(),
+				Config: withoutRoutingConfig,
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
 						plancheck.ExpectResourceAction(meshResourcePath, plancheck.ResourceActionUpdate),
@@ -120,7 +121,7 @@ func CreateMeshAndModifyFields(
 			},
 			CheckReapplyPlanEmpty(builder),
 			{
-				Config: builder.AddMesh(meshConfig.MeshName, meshConfig.ResourceName, updatedRequirementsSpec).Build(),
+				Config: updatedRequirementsConfig,
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
 						plancheck.ExpectResourceAction(meshResourcePath, plancheck.ResourceActionUpdate),
@@ -150,55 +151,49 @@ func CreatePolicyAndModifyFields(
 	builder := NewTestBuilder(policyConfig.Provider)
 	policyResourcePath := builder.ResourceAddress("mesh_traffic_permission", policyConfig.ResourceName)
 
-	// Initial spec
-	initialSpec := map[string]any{
-		"spec": map[string]any{
-			"from": []map[string]any{
-				{
-					"target_ref": map[string]any{
-						"kind": "Mesh",
-					},
-					"default": map[string]any{},
-				},
-			},
-		},
-	}
+	// Initial config
+	initialConfig := builder.AddPolicy(policyConfig.PolicyType, policyConfig.PolicyName, policyConfig.ResourceName, policyConfig.MeshRef, mustParseSpec(`
+		spec = {
+			from = [{
+				target_ref = {
+					kind = "Mesh"
+				}
+				default = {}
+			}]
+		}
+	`)).Build()
 
-	// Spec with proxy_types added
-	withProxyTypesSpec := map[string]any{
-		"spec": map[string]any{
-			"from": []map[string]any{
-				{
-					"target_ref": map[string]any{
-						"kind":        "Mesh",
-						"proxy_types": []string{"Sidecar"},
-					},
-					"default": map[string]any{},
-				},
-			},
-		},
-	}
+	// Config with proxy_types added
+	withProxyTypesConfig := builder.AddPolicy(policyConfig.PolicyType, policyConfig.PolicyName, policyConfig.ResourceName, policyConfig.MeshRef, mustParseSpec(`
+		spec = {
+			from = [{
+				target_ref = {
+					kind = "Mesh"
+					proxy_types = ["Sidecar"]
+				}
+				default = {}
+			}]
+		}
+	`)).Build()
 
-	// Spec with proxy_types as empty array
-	emptyProxyTypesSpec := map[string]any{
-		"spec": map[string]any{
-			"from": []map[string]any{
-				{
-					"target_ref": map[string]any{
-						"kind":        "Mesh",
-						"proxy_types": []string{},
-					},
-					"default": map[string]any{},
-				},
-			},
-		},
-	}
+	// Config with proxy_types as empty array
+	emptyProxyTypesConfig := builder.AddPolicy(policyConfig.PolicyType, policyConfig.PolicyName, policyConfig.ResourceName, policyConfig.MeshRef, mustParseSpec(`
+		spec = {
+			from = [{
+				target_ref = {
+					kind = "Mesh"
+					proxy_types = []
+				}
+				default = {}
+			}]
+		}
+	`)).Build()
 
 	return resource.TestCase{
 		ProtoV6ProviderFactories: providerFactory,
 		Steps: []resource.TestStep{
 			{
-				Config: builder.AddPolicy(policyConfig.PolicyType, policyConfig.PolicyName, policyConfig.ResourceName, policyConfig.MeshRef, initialSpec).Build(),
+				Config: initialConfig,
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
 						plancheck.ExpectResourceAction(policyResourcePath, plancheck.ResourceActionCreate),
@@ -207,7 +202,7 @@ func CreatePolicyAndModifyFields(
 			},
 			CheckReapplyPlanEmpty(builder),
 			{
-				Config: builder.AddPolicy(policyConfig.PolicyType, policyConfig.PolicyName, policyConfig.ResourceName, policyConfig.MeshRef, withProxyTypesSpec).Build(),
+				Config: withProxyTypesConfig,
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
 						plancheck.ExpectResourceAction(policyResourcePath, plancheck.ResourceActionUpdate),
@@ -217,7 +212,7 @@ func CreatePolicyAndModifyFields(
 			},
 			CheckReapplyPlanEmpty(builder),
 			{
-				Config: builder.AddPolicy(policyConfig.PolicyType, policyConfig.PolicyName, policyConfig.ResourceName, policyConfig.MeshRef, emptyProxyTypesSpec).Build(),
+				Config: emptyProxyTypesConfig,
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
 						plancheck.ExpectResourceAction(policyResourcePath, plancheck.ResourceActionUpdate),
@@ -240,18 +235,16 @@ func NotImportedResourceShouldError(
 	builder := NewTestBuilder(policyConfig.Provider)
 	policyResourcePath := builder.ResourceAddress("mesh_traffic_permission", policyConfig.ResourceName)
 
-	spec := map[string]any{
-		"spec": map[string]any{
-			"from": []map[string]any{
-				{
-					"target_ref": map[string]any{
-						"kind": "Mesh",
-					},
-					"default": map[string]any{},
-				},
-			},
-		},
-	}
+	configWithPolicy := builder.AddPolicy(policyConfig.PolicyType, policyConfig.PolicyName, policyConfig.ResourceName, policyConfig.MeshRef, mustParseSpec(`
+		spec = {
+			from = [{
+				target_ref = {
+					kind = "Mesh"
+				}
+				default = {}
+			}]
+		}
+	`)).Build()
 
 	return resource.TestCase{
 		ProtoV6ProviderFactories: providerFactory,
@@ -261,7 +254,7 @@ func NotImportedResourceShouldError(
 			},
 			{
 				PreConfig:   preConfigFn,
-				Config:      builder.AddPolicy(policyConfig.PolicyType, policyConfig.PolicyName, policyConfig.ResourceName, policyConfig.MeshRef, spec).Build(),
+				Config:      configWithPolicy,
 				ExpectError: expectedErr,
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
@@ -270,5 +263,93 @@ func NotImportedResourceShouldError(
 				},
 			},
 		},
+	}
+}
+
+// mustParseSpec parses HCL attributes from a string and returns them as a map.
+// It uses FromString to validate syntax, then hclparse to evaluate expressions.
+func mustParseSpec(hclAttrs string) map[string]any {
+	// Wrap in a dummy block to make it valid HCL
+	wrapped := fmt.Sprintf("dummy {\n%s\n}", hclAttrs)
+
+	// Validate syntax using FromString (uses hclwrite for syntax check)
+	_, err := FromString(wrapped)
+	if err != nil {
+		panic(fmt.Sprintf("invalid HCL syntax: %s", err))
+	}
+
+	// Parse and evaluate using hclparse (needed for expression evaluation)
+	parser := hclparse.NewParser()
+	file, diags := parser.ParseHCL([]byte(wrapped), "<inline>")
+	if diags.HasErrors() {
+		panic(fmt.Sprintf("failed to parse: %s", diags.Error()))
+	}
+
+	// Extract the dummy block
+	bodyContent, _, diags := file.Body.PartialContent(&hcl.BodySchema{
+		Blocks: []hcl.BlockHeaderSchema{{Type: "dummy"}},
+	})
+	if diags.HasErrors() || len(bodyContent.Blocks) == 0 {
+		panic("failed to extract dummy block")
+	}
+
+	// Get attributes from the dummy block
+	attrs, diags := bodyContent.Blocks[0].Body.JustAttributes()
+	if diags.HasErrors() {
+		panic(fmt.Sprintf("failed to get attributes: %s", diags.Error()))
+	}
+
+	result := make(map[string]any)
+	for name, attr := range attrs {
+		val, diags := attr.Expr.Value(nil)
+		if diags.HasErrors() {
+			panic(fmt.Sprintf("failed to evaluate %s: %s", name, diags.Error()))
+		}
+		result[name] = ctyToGo(val)
+	}
+
+	return result
+}
+
+// ctyToGo converts a cty.Value to a Go value
+func ctyToGo(val cty.Value) any {
+	if val.IsNull() {
+		return nil
+	}
+
+	ty := val.Type()
+
+	switch {
+	case ty == cty.String:
+		return val.AsString()
+	case ty == cty.Number:
+		var f float64
+		_ = gocty.FromCtyValue(val, &f)
+		// Check if it's actually an integer
+		if f == float64(int64(f)) {
+			return int64(f)
+		}
+		return f
+	case ty == cty.Bool:
+		return val.True()
+	case ty.IsListType() || ty.IsTupleType():
+		var result []any
+		it := val.ElementIterator()
+		for it.Next() {
+			_, elemVal := it.Element()
+			result = append(result, ctyToGo(elemVal))
+		}
+		return result
+	case ty.IsMapType() || ty.IsObjectType():
+		result := make(map[string]any)
+		it := val.ElementIterator()
+		for it.Next() {
+			keyVal, elemVal := it.Element()
+			key := keyVal.AsString()
+			result[key] = ctyToGo(elemVal)
+		}
+		return result
+	default:
+		panic(fmt.Sprintf("unsupported cty type: %s", ty.FriendlyName()))
 	}
 }

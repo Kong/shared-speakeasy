@@ -25,6 +25,8 @@ type TemplateParams struct {
 var resourceNameMappings = map[string]string{
 	"MeshHostnameGenerator": "HostnameGenerator",
 	"MeshSecret":            "Secret",
+	"MeshZoneEgress":        "ZoneEgress",
+	"MeshZoneIngress":       "ZoneIngress",
 }
 
 func toLowerCamel(s string) string {

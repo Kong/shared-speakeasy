@@ -58,13 +58,7 @@ func (r *{{.ResourceName}}Resource) ModifyPlan(
 	}
 	{{- end }}
 
-	{{- if eq .ResourceName "MeshHostnameGenerator" }}
-	request := operations.GetHostnameGeneratorRequest{
-	{{- else if eq .ResourceName "MeshSecret" }}
-	request := operations.GetSecretRequest{
-	{{- else }}
-	request := operations.Get{{.ResourceName}}Request{
-	{{- end }}
+	request := operations.Get{{.SDKName}}Request{
 		Name: name.ValueString(),
 	}
 	{{- if .MeshScopedResource }}
@@ -73,13 +67,7 @@ func (r *{{.ResourceName}}Resource) ModifyPlan(
 	{{- if .CPScopedResource }}
 	request.CpID = cpID.ValueString()
 	{{- end }}
-	{{- if eq .ResourceName "MeshHostnameGenerator" }}
-	res, err := r.client.HostnameGenerator.GetHostnameGenerator(ctx, request)
-	{{- else if eq .ResourceName "MeshSecret" }}
-	res, err := r.client.Secret.GetSecret(ctx, request)
-	{{- else }}
-	res, err := r.client.{{.ResourceName}}.Get{{.ResourceName}}(ctx, request)
-	{{- end }}
+	res, err := r.client.{{.SDKName}}.Get{{.SDKName}}(ctx, request)
 
 	if err != nil {
 		var sdkError *sdkerrors.SDKError

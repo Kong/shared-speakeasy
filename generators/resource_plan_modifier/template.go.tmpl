@@ -60,6 +60,8 @@ func (r *{{.ResourceName}}Resource) ModifyPlan(
 
 	{{- if eq .ResourceName "MeshHostnameGenerator" }}
 	request := operations.GetHostnameGeneratorRequest{
+	{{- else if eq .ResourceName "MeshSecret" }}
+	request := operations.GetSecretRequest{
 	{{- else }}
 	request := operations.Get{{.ResourceName}}Request{
 	{{- end }}

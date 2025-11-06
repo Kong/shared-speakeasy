@@ -18,6 +18,13 @@ type TemplateParams struct {
 	ProviderName       string // e.g., terraform-provider-kong-mesh
 	MeshScopedResource bool
 	CPScopedResource   bool
+	SDKName            string // e.g., HostnameGenerator for MeshHostnameGenerator, Secret for MeshSecret
+}
+
+// resourceNameMappings maps special resource names to their SDK names
+var resourceNameMappings = map[string]string{
+	"MeshHostnameGenerator": "HostnameGenerator",
+	"MeshSecret":            "Secret",
 }
 
 func toLowerCamel(s string) string {
@@ -37,13 +44,20 @@ func main() {
 	resourceName := os.Args[2]
 	providerName := os.Args[3]
 
+	// Determine SDK name from mapping, or use resource name as default
+	sdkName := resourceName
+	if mappedName, exists := resourceNameMappings[resourceName]; exists {
+		sdkName = mappedName
+	}
+
 	params := TemplateParams{
 		ResourceName:       resourceName,
 		ResourceVarName:    toLowerCamel(resourceName),
 		ResourceModelName:  resourceName + "ResourceModel",
 		ProviderName:       providerName,
-		MeshScopedResource: !(resourceName == "Mesh" || resourceName == "MeshHostnameGenerator"),
+		MeshScopedResource: resourceName != "Mesh" && resourceName != "MeshHostnameGenerator",
 		CPScopedResource:   providerName != "terraform-provider-kong-mesh",
+		SDKName:            sdkName,
 	}
 
 	tmplContent, err := embeddedTemplateFS.ReadFile("template.go.tmpl")

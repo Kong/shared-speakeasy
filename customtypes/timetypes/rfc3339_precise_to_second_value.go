@@ -104,7 +104,6 @@ func NewRFC3339PreciseToSecondUnknown() RFC3339PreciseToSecond {
 // diagnostic if the string is not RFC3339 format.
 func NewRFC3339PreciseToSecondValue(value string) (RFC3339PreciseToSecond, diag.Diagnostics) {
 	_, err := time.Parse(time.RFC3339, value)
-
 	if err != nil {
 		// Returning an unknown value will guarantee that, as a last resort,
 		// Terraform will return an error if attempting to store into state.
@@ -121,7 +120,6 @@ func NewRFC3339PreciseToSecondValue(value string) (RFC3339PreciseToSecond, diag.
 // Used in unit tests.
 func NewRFC3339PreciseToSecondValueMust(value string) RFC3339PreciseToSecond {
 	_, err := time.Parse(time.RFC3339, value)
-
 	if err != nil {
 		panic(fmt.Sprintf("Invalid RFC3339 String Value (%s): %s", value, err))
 	}

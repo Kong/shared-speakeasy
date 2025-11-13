@@ -10,9 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 )
 
-var (
-	_ basetypes.StringValuableWithSemanticEquals = (*Base64Input)(nil)
-)
+var _ basetypes.StringValuableWithSemanticEquals = (*Base64Input)(nil)
 
 // Base64Input represents a valid base64 encoded string. Custom semantic equality
 // logic is defined for Base64Input, where the encoded value is decoded, and then compared to the value received in response from Read / Create / Update.

@@ -10,9 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 )
 
-var (
-	_ basetypes.StringValuable = (*Base64OrPlainInput)(nil)
-)
+var _ basetypes.StringValuable = (*Base64OrPlainInput)(nil)
 
 // Base64OrPlainInput represents a valid IPv4 address string (dotted decimal, no leading zeroes). No semantic equality
 // logic is defined for Base64OrPlainInput, so it will follow Terraform's data-consistency rules for strings, which must match byte-for-byte.

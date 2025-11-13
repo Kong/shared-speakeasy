@@ -10,9 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
 )
 
-var (
-	_ basetypes.StringTypable = (*Base64InputType)(nil)
-)
+var _ basetypes.StringTypable = (*Base64InputType)(nil)
 
 // Base64InputType is an attribute type that represents a string that is base64 encoded, but only in configuration and state, not in the response. It has
 // custom semantic equality defined in the Value type, which decodes the string and compares it with the response after create / update.
@@ -52,7 +50,6 @@ func (t Base64InputType) ValueFromString(ctx context.Context, in basetypes.Strin
 // for the provider to consume the data with.
 func (t Base64InputType) ValueFromTerraform(ctx context.Context, in tftypes.Value) (attr.Value, error) {
 	attrValue, err := t.StringType.ValueFromTerraform(ctx, in)
-
 	if err != nil {
 		return nil, err
 	}

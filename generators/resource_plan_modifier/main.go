@@ -29,6 +29,14 @@ var resourceNameMappings = map[string]string{
 	"MeshZoneIngress":       "ZoneIngress",
 }
 
+// nonMeshScopedResources defines resources that are not mesh-scoped
+var nonMeshScopedResources = map[string]bool{
+	"Mesh":                  true,
+	"MeshHostnameGenerator": true,
+	"MeshZoneEgress":        true,
+	"MeshZoneIngress":       true,
+}
+
 func toLowerCamel(s string) string {
 	if s == "" {
 		return ""
@@ -57,7 +65,7 @@ func main() {
 		ResourceVarName:    toLowerCamel(resourceName),
 		ResourceModelName:  resourceName + "ResourceModel",
 		ProviderName:       providerName,
-		MeshScopedResource: resourceName != "Mesh" && resourceName != "MeshHostnameGenerator",
+		MeshScopedResource: !nonMeshScopedResources[resourceName],
 		CPScopedResource:   providerName != "terraform-provider-kong-mesh",
 		SDKName:            sdkName,
 	}

@@ -229,13 +229,9 @@ func setBlockAttributes(body *hclwrite.Body, attributes map[string]any) {
 
 	for _, key := range keys {
 		value := attributes[key]
-		// Handle nested blocks (maps are treated as nested blocks)
-		if mapValue, ok := value.(map[string]any); ok {
-			nestedBlock := body.AppendNewBlock(key, nil)
-			setBlockAttributes(nestedBlock.Body(), mapValue)
-		} else {
-			body.SetAttributeValue(key, convertToCtyValue(value))
-		}
+		// All values are set as attributes (including maps which become object values)
+		// Nested blocks must be created explicitly via SetBlock, not through this function
+		body.SetAttributeValue(key, convertToCtyValue(value))
 	}
 }
 
@@ -252,12 +248,18 @@ func convertToCtyValue(value any) cty.Value {
 	case bool:
 		return cty.BoolVal(v)
 	case []string:
+		if len(v) == 0 {
+			return cty.ListValEmpty(cty.String)
+		}
 		vals := make([]cty.Value, len(v))
 		for i, s := range v {
 			vals[i] = cty.StringVal(s)
 		}
 		return cty.ListVal(vals)
 	case []any:
+		if len(v) == 0 {
+			return cty.EmptyTupleVal
+		}
 		vals := make([]cty.Value, len(v))
 		for i, item := range v {
 			vals[i] = convertToCtyValue(item)

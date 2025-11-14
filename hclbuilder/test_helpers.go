@@ -56,28 +56,24 @@ func (tb *TestBuilder) ResourceAddress(resourceType, resourceName string) string
 func (tb *TestBuilder) AddMeshFromHCL(meshName, meshResourceName, hclBlock string) *TestBuilder {
 	providerPrefix := tb.getProviderPrefix()
 
-	// Parse the HCL block to get attributes
-	blockBuilder, err := FromString(hclBlock)
-	if err != nil {
-		// If parsing fails, create a simple block with the raw spec
-		tb.builder.SetBlock(fmt.Sprintf("resource.%s_mesh.%s", providerPrefix, meshResourceName), map[string]any{
-			"provider": strings.ToLower(string(tb.providerType)),
-			"type":     "Mesh",
-			"name":     meshName,
-		})
-		return tb
-	}
-
-	// Combine provider metadata with parsed HCL
-	meshPath := fmt.Sprintf("resource.%s_mesh.%s", providerPrefix, meshResourceName)
-	tb.builder.SetBlock(meshPath, map[string]any{
+	attrs := map[string]any{
 		"provider": strings.ToLower(string(tb.providerType)),
 		"type":     "Mesh",
 		"name":     meshName,
-	})
+	}
 
-	// Merge the parsed block into the mesh
-	tb.builder.file.Body().AppendUnstructuredTokens(blockBuilder.file.Body().BuildTokens(nil))
+	// Parse the HCL block to get attributes if not empty
+	if hclBlock != "" {
+		// Use mustParseSpec from test_cases.go to parse the attributes
+		// Wrap in a function call since mustParseSpec is in test_cases.go
+		parsed := parseHCLAttributes(hclBlock)
+		for k, v := range parsed {
+			attrs[k] = v
+		}
+	}
+
+	meshPath := fmt.Sprintf("resource.%s_mesh.%s", providerPrefix, meshResourceName)
+	tb.builder.SetBlock(meshPath, attrs)
 
 	return tb
 }
@@ -112,9 +108,12 @@ func (tb *TestBuilder) RemoveMesh(meshResourceName string) *TestBuilder {
 func (tb *TestBuilder) AddPolicy(policyType, policyName, policyResourceName, meshRef string, spec map[string]any) *TestBuilder {
 	providerPrefix := tb.getProviderPrefix()
 
+	// Convert policy type from snake_case to PascalCase for the type attribute
+	pascalCaseType := tb.resourceTypeToPolicyType(policyType)
+
 	attrs := map[string]any{
 		"provider": strings.ToLower(string(tb.providerType)),
-		"type":     policyType,
+		"type":     pascalCaseType,
 		"name":     policyName,
 		"mesh":     meshRef,
 	}
@@ -124,8 +123,7 @@ func (tb *TestBuilder) AddPolicy(policyType, policyName, policyResourceName, mes
 		attrs[k] = v
 	}
 
-	resourceType := tb.policyTypeToResourceType(policyType)
-	tb.builder.SetBlock(fmt.Sprintf("resource.%s_%s.%s", providerPrefix, resourceType, policyResourceName), attrs)
+	tb.builder.SetBlock(fmt.Sprintf("resource.%s_%s.%s", providerPrefix, policyType, policyResourceName), attrs)
 	return tb
 }
 
@@ -164,4 +162,22 @@ func (tb *TestBuilder) policyTypeToResourceType(policyType string) string {
 		result += strings.ToLower(string(r))
 	}
 	return result
+}
+
+func (tb *TestBuilder) resourceTypeToPolicyType(resourceType string) string {
+	// Convert "mesh_traffic_permission" to "MeshTrafficPermission"
+	parts := strings.Split(resourceType, "_")
+	result := ""
+	for _, part := range parts {
+		if len(part) > 0 {
+			result += strings.ToUpper(string(part[0])) + part[1:]
+		}
+	}
+	return result
+}
+
+// parseHCLAttributes parses HCL attributes from a string
+func parseHCLAttributes(hclAttrs string) map[string]any {
+	// Call mustParseSpec from test_cases.go (same package)
+	return mustParseSpec(hclAttrs)
 }

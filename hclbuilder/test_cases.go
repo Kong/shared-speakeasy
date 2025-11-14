@@ -20,6 +20,7 @@ type MeshConfig struct {
 	MeshName     string
 	ResourceName string
 	Provider     ProviderType
+	ServerURL    string // Optional server URL, defaults to http://localhost:5681
 }
 
 // PolicyConfig holds policy configuration
@@ -29,6 +30,7 @@ type PolicyConfig struct {
 	ResourceName string
 	MeshRef      string
 	Provider     ProviderType
+	ServerURL    string // Optional server URL, defaults to http://localhost:5681
 }
 
 // CheckReapplyPlanEmpty verifies that reapplying produces an empty plan
@@ -46,6 +48,9 @@ func CreateMeshAndModifyFields(
 	meshConfig MeshConfig,
 ) resource.TestCase {
 	builder := NewTestBuilder(meshConfig.Provider)
+	if meshConfig.ServerURL != "" {
+		builder.SetAttribute("provider."+string(meshConfig.Provider), "server_url", meshConfig.ServerURL)
+	}
 	meshResourcePath := builder.ResourceAddress("mesh", meshConfig.ResourceName)
 
 	// Initial config
@@ -149,6 +154,9 @@ func CreatePolicyAndModifyFields(
 	policyConfig PolicyConfig,
 ) resource.TestCase {
 	builder := NewTestBuilder(policyConfig.Provider)
+	if policyConfig.ServerURL != "" {
+		builder.SetAttribute("provider."+string(policyConfig.Provider), "server_url", policyConfig.ServerURL)
+	}
 	policyResourcePath := builder.ResourceAddress("mesh_traffic_permission", policyConfig.ResourceName)
 
 	// Initial config
@@ -233,6 +241,9 @@ func NotImportedResourceShouldError(
 ) resource.TestCase {
 	expectedErr := regexp.MustCompile(`MeshTrafficPermission already exists`)
 	builder := NewTestBuilder(policyConfig.Provider)
+	if policyConfig.ServerURL != "" {
+		builder.SetAttribute("provider."+string(policyConfig.Provider), "server_url", policyConfig.ServerURL)
+	}
 	policyResourcePath := builder.ResourceAddress("mesh_traffic_permission", policyConfig.ResourceName)
 
 	configWithPolicy := builder.AddPolicy(policyConfig.PolicyType, policyConfig.PolicyName, policyConfig.ResourceName, policyConfig.MeshRef, mustParseSpec(`

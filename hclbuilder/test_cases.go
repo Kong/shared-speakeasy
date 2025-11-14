@@ -157,45 +157,72 @@ func CreatePolicyAndModifyFields(
 	if policyConfig.ServerURL != "" {
 		builder.SetAttribute("provider."+string(policyConfig.Provider), "server_url", policyConfig.ServerURL)
 	}
-	policyResourcePath := builder.ResourceAddress("mesh_traffic_permission", policyConfig.ResourceName)
+
+	// Create mesh first for the policy tests
+	meshResourceName := "test_mesh"
+	meshName := "policy-test-mesh"
+	builder.AddMesh(meshName, meshResourceName, mustParseSpec(`
+		skip_creating_initial_policies = ["*"]
+	`))
 
 	// Initial config
-	initialConfig := builder.AddPolicy(policyConfig.PolicyType, policyConfig.PolicyName, policyConfig.ResourceName, policyConfig.MeshRef, mustParseSpec(`
+	policyResourcePath := builder.ResourceAddress("mesh_traffic_permission", policyConfig.ResourceName)
+	meshResourceAddress := builder.ResourceAddress("mesh", meshResourceName)
+
+	initialSpec := mustParseSpec(`
+		labels = {}
 		spec = {
 			from = [{
 				target_ref = {
 					kind = "Mesh"
 				}
-				default = {}
+				default = {
+					action = "Allow"
+				}
 			}]
 		}
-	`)).Build()
+	`)
+	initialSpec["depends_on"] = []any{meshResourceAddress}
+	builder.AddPolicy(policyConfig.PolicyType, policyConfig.PolicyName, policyConfig.ResourceName, meshName, initialSpec)
+	initialConfig := builder.Build()
 
 	// Config with proxy_types added
-	withProxyTypesConfig := builder.AddPolicy(policyConfig.PolicyType, policyConfig.PolicyName, policyConfig.ResourceName, policyConfig.MeshRef, mustParseSpec(`
+	withProxyTypesSpec := mustParseSpec(`
+		labels = {}
 		spec = {
 			from = [{
 				target_ref = {
 					kind = "Mesh"
 					proxy_types = ["Sidecar"]
 				}
-				default = {}
+				default = {
+					action = "Allow"
+				}
 			}]
 		}
-	`)).Build()
+	`)
+	withProxyTypesSpec["depends_on"] = []any{meshResourceAddress}
+	builder.AddPolicy(policyConfig.PolicyType, policyConfig.PolicyName, policyConfig.ResourceName, meshName, withProxyTypesSpec)
+	withProxyTypesConfig := builder.Build()
 
 	// Config with proxy_types as empty array
-	emptyProxyTypesConfig := builder.AddPolicy(policyConfig.PolicyType, policyConfig.PolicyName, policyConfig.ResourceName, policyConfig.MeshRef, mustParseSpec(`
+	emptyProxyTypesSpec := mustParseSpec(`
+		labels = {}
 		spec = {
 			from = [{
 				target_ref = {
 					kind = "Mesh"
 					proxy_types = []
 				}
-				default = {}
+				default = {
+					action = "Allow"
+				}
 			}]
 		}
-	`)).Build()
+	`)
+	emptyProxyTypesSpec["depends_on"] = []any{meshResourceAddress}
+	builder.AddPolicy(policyConfig.PolicyType, policyConfig.PolicyName, policyConfig.ResourceName, meshName, emptyProxyTypesSpec)
+	emptyProxyTypesConfig := builder.Build()
 
 	return resource.TestCase{
 		ProtoV6ProviderFactories: providerFactory,
@@ -244,24 +271,43 @@ func NotImportedResourceShouldError(
 	if policyConfig.ServerURL != "" {
 		builder.SetAttribute("provider."+string(policyConfig.Provider), "server_url", policyConfig.ServerURL)
 	}
-	policyResourcePath := builder.ResourceAddress("mesh_traffic_permission", policyConfig.ResourceName)
 
-	configWithPolicy := builder.AddPolicy(policyConfig.PolicyType, policyConfig.PolicyName, policyConfig.ResourceName, policyConfig.MeshRef, mustParseSpec(`
+	// Create mesh first
+	meshResourceName := "test_mesh"
+	meshName := "policy-test-mesh-2"
+	builder.AddMesh(meshName, meshResourceName, mustParseSpec(`
+		skip_creating_initial_policies = ["*"]
+	`))
+
+	policyResourcePath := builder.ResourceAddress("mesh_traffic_permission", policyConfig.ResourceName)
+	meshResourceAddress := builder.ResourceAddress("mesh", meshResourceName)
+
+	// Build mesh-only config for step 1
+	meshOnlyConfig := builder.Build()
+
+	// Add policy for step 2
+	policySpec := mustParseSpec(`
+		labels = {}
 		spec = {
 			from = [{
 				target_ref = {
 					kind = "Mesh"
 				}
-				default = {}
+				default = {
+					action = "Allow"
+				}
 			}]
 		}
-	`)).Build()
+	`)
+	policySpec["depends_on"] = []any{meshResourceAddress}
+	builder.AddPolicy(policyConfig.PolicyType, policyConfig.PolicyName, policyConfig.ResourceName, meshName, policySpec)
+	configWithPolicy := builder.Build()
 
 	return resource.TestCase{
 		ProtoV6ProviderFactories: providerFactory,
 		Steps: []resource.TestStep{
 			{
-				Config: builder.Build(),
+				Config: meshOnlyConfig,
 			},
 			{
 				PreConfig:   preConfigFn,

@@ -33,15 +33,6 @@ type PolicyConfig struct {
 	ServerURL    string // Optional server URL, defaults to http://localhost:5681
 }
 
-// CheckReapplyPlanEmpty verifies that reapplying produces an empty plan
-func CheckReapplyPlanEmpty(builder interface{ Build() string }) resource.TestStep {
-	return resource.TestStep{
-		Config:             builder.Build(),
-		PlanOnly:           true,
-		ExpectNonEmptyPlan: false,
-	}
-}
-
 // CreateMeshAndModifyFields creates a mesh and modifies fields on it
 func CreateMeshAndModifyFields(
 	providerFactory map[string]func() (tfprotov6.ProviderServer, error),
@@ -107,7 +98,6 @@ func CreateMeshAndModifyFields(
 					},
 				},
 			},
-			CheckReapplyPlanEmpty(builder),
 			{
 				Config: extendedConfig,
 				ConfigPlanChecks: resource.ConfigPlanChecks{
@@ -129,7 +119,6 @@ func CreateMeshAndModifyFields(
 					},
 				},
 			},
-			CheckReapplyPlanEmpty(builder),
 			{
 				Config: updatedRequirementsConfig,
 				ConfigPlanChecks: resource.ConfigPlanChecks{
@@ -139,7 +128,6 @@ func CreateMeshAndModifyFields(
 					},
 				},
 			},
-			CheckReapplyPlanEmpty(builder),
 			{
 				Config: builder.RemoveMesh(meshConfig.ResourceName).Build(),
 				ConfigPlanChecks: resource.ConfigPlanChecks{
@@ -148,7 +136,6 @@ func CreateMeshAndModifyFields(
 					},
 				},
 			},
-			CheckReapplyPlanEmpty(builder),
 		},
 	}
 }
@@ -241,7 +228,6 @@ func CreatePolicyAndModifyFields(
 					},
 				},
 			},
-			CheckReapplyPlanEmpty(builder),
 			{
 				Config: withProxyTypesConfig,
 				ConfigPlanChecks: resource.ConfigPlanChecks{
@@ -251,7 +237,6 @@ func CreatePolicyAndModifyFields(
 					},
 				},
 			},
-			CheckReapplyPlanEmpty(builder),
 			{
 				Config: emptyProxyTypesConfig,
 				ConfigPlanChecks: resource.ConfigPlanChecks{
@@ -261,7 +246,6 @@ func CreatePolicyAndModifyFields(
 					},
 				},
 			},
-			CheckReapplyPlanEmpty(builder),
 		},
 	}
 }

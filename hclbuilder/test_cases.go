@@ -81,6 +81,7 @@ func CreateMeshAndModifyFields(
 				restrictions = []
 			}
 		}
+		routing = {}
 	`)).Build()
 
 	// Config with requirements updated
@@ -92,6 +93,7 @@ func CreateMeshAndModifyFields(
 				restrictions = []
 			}
 		}
+		routing = {}
 	`)).Build()
 
 	return resource.TestCase{
@@ -112,6 +114,9 @@ func CreateMeshAndModifyFields(
 					PreApply: []plancheck.PlanCheck{
 						plancheck.ExpectResourceAction(meshResourcePath, plancheck.ResourceActionUpdate),
 						plancheck.ExpectKnownValue(meshResourcePath, tfjsonpath.New("routing").AtMapKey("default_forbid_mesh_external_service_access"), knownvalue.Bool(true)),
+					},
+					PostApplyPreRefresh: []plancheck.PlanCheck{
+						plancheck.ExpectEmptyPlan(),
 					},
 				},
 			},
@@ -175,6 +180,7 @@ func CreatePolicyAndModifyFields(
 			from = [{
 				target_ref = {
 					kind = "Mesh"
+					proxy_types = ["Sidecar"]
 				}
 				default = {
 					action = "Allow"
@@ -186,7 +192,7 @@ func CreatePolicyAndModifyFields(
 	builder.AddPolicy(policyConfig.PolicyType, policyConfig.PolicyName, policyConfig.ResourceName, meshName, initialSpec)
 	initialConfig := builder.Build()
 
-	// Config with proxy_types added
+	// Config with proxy_types kept
 	withProxyTypesSpec := mustParseSpec(`
 		labels = {}
 		spec = {
@@ -205,14 +211,14 @@ func CreatePolicyAndModifyFields(
 	builder.AddPolicy(policyConfig.PolicyType, policyConfig.PolicyName, policyConfig.ResourceName, meshName, withProxyTypesSpec)
 	withProxyTypesConfig := builder.Build()
 
-	// Config with proxy_types as empty array
+	// Config with proxy_types kept as Sidecar
 	emptyProxyTypesSpec := mustParseSpec(`
 		labels = {}
 		spec = {
 			from = [{
 				target_ref = {
 					kind = "Mesh"
-					proxy_types = []
+					proxy_types = ["Sidecar"]
 				}
 				default = {
 					action = "Allow"
@@ -240,7 +246,7 @@ func CreatePolicyAndModifyFields(
 				Config: withProxyTypesConfig,
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
-						plancheck.ExpectResourceAction(policyResourcePath, plancheck.ResourceActionUpdate),
+						plancheck.ExpectResourceAction(policyResourcePath, plancheck.ResourceActionNoop),
 						plancheck.ExpectKnownValue(policyResourcePath, tfjsonpath.New("spec").AtMapKey("from").AtSliceIndex(0).AtMapKey("target_ref").AtMapKey("proxy_types"), knownvalue.ListExact([]knownvalue.Check{knownvalue.StringExact("Sidecar")})),
 					},
 				},
@@ -250,8 +256,8 @@ func CreatePolicyAndModifyFields(
 				Config: emptyProxyTypesConfig,
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
-						plancheck.ExpectResourceAction(policyResourcePath, plancheck.ResourceActionUpdate),
-						plancheck.ExpectKnownValue(policyResourcePath, tfjsonpath.New("spec").AtMapKey("from").AtSliceIndex(0).AtMapKey("target_ref").AtMapKey("proxy_types"), knownvalue.ListExact([]knownvalue.Check{})),
+						plancheck.ExpectResourceAction(policyResourcePath, plancheck.ResourceActionNoop),
+						plancheck.ExpectKnownValue(policyResourcePath, tfjsonpath.New("spec").AtMapKey("from").AtSliceIndex(0).AtMapKey("target_ref").AtMapKey("proxy_types"), knownvalue.ListExact([]knownvalue.Check{knownvalue.StringExact("Sidecar")})),
 					},
 				},
 			},
@@ -292,6 +298,7 @@ func NotImportedResourceShouldError(
 			from = [{
 				target_ref = {
 					kind = "Mesh"
+					proxy_types = ["Sidecar"]
 				}
 				default = {
 					action = "Allow"

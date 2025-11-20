@@ -15,6 +15,18 @@ import (
 	"github.com/zclconf/go-cty/cty/gocty"
 )
 
+// ProviderType represents a Terraform provider type
+type ProviderType string
+
+const (
+	// KongMesh is the kong-mesh provider
+	KongMesh ProviderType = "kong-mesh"
+	// Konnect is the konnect provider
+	Konnect ProviderType = "konnect"
+	// KonnectBeta is the konnect-beta provider
+	KonnectBeta ProviderType = "konnect-beta"
+)
+
 // MeshConfig holds mesh configuration
 type MeshConfig struct {
 	MeshName     string
@@ -38,19 +50,22 @@ func CreateMeshAndModifyFields(
 	providerFactory map[string]func() (tfprotov6.ProviderServer, error),
 	meshConfig MeshConfig,
 ) resource.TestCase {
-	builder := NewTestBuilder(meshConfig.Provider)
-	if meshConfig.ServerURL != "" {
-		builder.SetAttribute("provider."+string(meshConfig.Provider), "server_url", meshConfig.ServerURL)
-	}
+	builder := NewWithProvider(string(meshConfig.Provider), meshConfig.ServerURL)
 	meshResourcePath := builder.ResourceAddress("mesh", meshConfig.ResourceName)
 
-	spec := mustParseSpec(`skip_creating_initial_policies = ["*"]`)
+	mesh, _ := FromString(fmt.Sprintf(`
+resource "kong-mesh_mesh" "%s" {
+  type  = "Mesh"
+  name  = "%s"
+  skip_creating_initial_policies = ["*"]
+}
+`, meshConfig.ResourceName, meshConfig.MeshName))
 
 	return resource.TestCase{
 		ProtoV6ProviderFactories: providerFactory,
 		Steps: []resource.TestStep{
 			{
-				Config: builder.AddMesh(meshConfig.MeshName, meshConfig.ResourceName, spec).Build(),
+				Config: builder.Add(mesh).Build(),
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
 						plancheck.ExpectResourceAction(meshResourcePath, plancheck.ResourceActionCreate),
@@ -58,18 +73,10 @@ func CreateMeshAndModifyFields(
 				},
 			},
 			{
-				Config: func() string {
-					spec["constraints"] = map[string]any{
-						"dataplane_proxy": map[string]any{
-							"requirements": []any{map[string]any{"tags": map[string]any{"key": "a"}}},
-							"restrictions": []any{},
-						},
-					}
-					spec["routing"] = map[string]any{
-						"default_forbid_mesh_external_service_access": true,
-					}
-					return builder.AddMesh(meshConfig.MeshName, meshConfig.ResourceName, spec).Build()
-				}(),
+				Config: builder.Add(mesh.
+					AddAttribute("constraints.dataplane_proxy.requirements", []any{map[string]any{"tags": map[string]any{"key": "a"}}}).
+					AddAttribute("constraints.dataplane_proxy.restrictions", []any{}).
+					AddAttribute("routing.default_forbid_mesh_external_service_access", true)).Build(),
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
 						plancheck.ExpectResourceAction(meshResourcePath, plancheck.ResourceActionUpdate),
@@ -81,10 +88,8 @@ func CreateMeshAndModifyFields(
 				},
 			},
 			{
-				Config: func() string {
-					spec["routing"] = map[string]any{}
-					return builder.AddMesh(meshConfig.MeshName, meshConfig.ResourceName, spec).Build()
-				}(),
+				Config: builder.Add(mesh.
+					RemoveAttribute("routing")).Build(),
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
 						plancheck.ExpectResourceAction(meshResourcePath, plancheck.ResourceActionUpdate),
@@ -93,10 +98,8 @@ func CreateMeshAndModifyFields(
 				},
 			},
 			{
-				Config: func() string {
-					spec["constraints"].(map[string]any)["dataplane_proxy"].(map[string]any)["requirements"] = []any{}
-					return builder.AddMesh(meshConfig.MeshName, meshConfig.ResourceName, spec).Build()
-				}(),
+				Config: builder.Add(mesh.
+					AddAttribute("constraints.dataplane_proxy.requirements", []any{})).Build(),
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
 						plancheck.ExpectResourceAction(meshResourcePath, plancheck.ResourceActionUpdate),
@@ -121,10 +124,7 @@ func CreatePolicyAndModifyFields(
 	providerFactory map[string]func() (tfprotov6.ProviderServer, error),
 	policyConfig PolicyConfig,
 ) resource.TestCase {
-	builder := NewTestBuilder(policyConfig.Provider)
-	if policyConfig.ServerURL != "" {
-		builder.SetAttribute("provider."+string(policyConfig.Provider), "server_url", policyConfig.ServerURL)
-	}
+	builder := NewWithProvider(string(policyConfig.Provider), policyConfig.ServerURL)
 
 	// Create mesh first for the policy tests
 	meshResourceName := "test_mesh"
@@ -192,10 +192,7 @@ func NotImportedResourceShouldError(
 	preConfigFn func(),
 ) resource.TestCase {
 	expectedErr := regexp.MustCompile(`MeshTrafficPermission already exists`)
-	builder := NewTestBuilder(policyConfig.Provider)
-	if policyConfig.ServerURL != "" {
-		builder.SetAttribute("provider."+string(policyConfig.Provider), "server_url", policyConfig.ServerURL)
-	}
+	builder := NewWithProvider(string(policyConfig.Provider), policyConfig.ServerURL)
 
 	// Create mesh first
 	meshResourceName := "test_mesh"

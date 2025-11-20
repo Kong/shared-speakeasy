@@ -13,7 +13,8 @@ import (
 
 // Builder provides a fluent API for building and modifying HCL configurations
 type Builder struct {
-	file *hclwrite.File
+	file         *hclwrite.File
+	providerType string // Optional: used for provider-specific helpers
 }
 
 // New creates a new empty HCL builder
@@ -21,6 +22,26 @@ func New() *Builder {
 	return &Builder{
 		file: hclwrite.NewEmptyFile(),
 	}
+}
+
+// NewWithProvider creates a new builder with a provider block
+func NewWithProvider(provider string, serverURL string) *Builder {
+	b := New()
+	b.providerType = provider
+
+	// Add provider block
+	providerName := strings.ToLower(provider)
+	providerName = strings.ReplaceAll(providerName, "_", "-")
+
+	if serverURL == "" {
+		serverURL = "http://localhost:5681"
+	}
+
+	b.SetBlock(fmt.Sprintf("provider.%s", providerName), map[string]any{
+		"server_url": serverURL,
+	})
+
+	return b
 }
 
 // FromFile loads an HCL configuration from a file
@@ -53,9 +74,100 @@ func (b *Builder) Build() string {
 	return string(b.file.Bytes())
 }
 
+// Add embeds another builder's content into this builder
+func (b *Builder) Add(other *Builder) *Builder {
+	if other == nil || other.file == nil {
+		return b
+	}
+
+	// Merge all blocks from the other builder into this one
+	for _, block := range other.file.Body().Blocks() {
+		b.file.Body().AppendBlock(block)
+	}
+
+	// Merge all attributes from the other builder into this one
+	for name, attr := range other.file.Body().Attributes() {
+		b.file.Body().SetAttributeRaw(name, attr.Expr().BuildTokens(nil))
+	}
+
+	return b
+}
+
 // WriteFile writes the HCL configuration to a file
 func (b *Builder) WriteFile(path string) error {
 	return os.WriteFile(path, b.file.Bytes(), 0o600)
+}
+
+// AddAttribute adds or updates an attribute on the first block in this builder.
+// This is designed for builders that contain a single resource/block.
+// The path uses dot notation for nested attributes.
+// Example: builder.AddAttribute("skip_creating_initial_policies", []string{"*"})
+// Example: builder.AddAttribute("routing.default_forbid_mesh_external_service_access", true)
+func (b *Builder) AddAttribute(path string, value any) *Builder {
+	blocks := b.file.Body().Blocks()
+	if len(blocks) == 0 {
+		// No blocks, can't add attribute
+		return b
+	}
+
+	// Work with the first block (typical use case: single resource)
+	block := blocks[0]
+	parts := strings.Split(path, ".")
+
+	if len(parts) == 1 {
+		// Simple attribute
+		block.Body().SetAttributeValue(path, convertToCtyValue(value))
+	} else {
+		// Nested attribute - build the full structure from the parts
+		nested := buildNestedStructureRecursive(parts[1:], value)
+		// Set the root attribute with the nested structure
+		block.Body().SetAttributeValue(parts[0], convertToCtyValue(nested))
+	}
+
+	return b
+}
+
+// RemoveAttribute removes an attribute from the first block in this builder.
+// Uses dot notation for nested attributes.
+func (b *Builder) RemoveAttribute(path string) *Builder {
+	blocks := b.file.Body().Blocks()
+	if len(blocks) == 0 {
+		return b
+	}
+
+	block := blocks[0]
+	parts := strings.Split(path, ".")
+
+	if len(parts) == 1 {
+		// Simple attribute
+		block.Body().RemoveAttribute(path)
+	} else {
+		// For nested attributes, we'd need to read the structure, modify it, and write it back
+		// For now, just remove the top-level attribute
+		block.Body().RemoveAttribute(parts[0])
+	}
+
+	return b
+}
+
+// buildNestedStructure builds a nested map from dot-separated path and value
+func buildNestedStructure(parts []string, value any) map[string]any {
+	if len(parts) == 1 {
+		return map[string]any{parts[0]: value}
+	}
+
+	return map[string]any{
+		parts[0]: buildNestedStructureRecursive(parts[1:], value),
+	}
+}
+
+func buildNestedStructureRecursive(parts []string, value any) any {
+	if len(parts) == 1 {
+		return map[string]any{parts[0]: value}
+	}
+	return map[string]any{
+		parts[0]: buildNestedStructureRecursive(parts[1:], value),
+	}
 }
 
 // SetAttribute sets an attribute value at the given path.
@@ -122,48 +234,6 @@ func (b *Builder) SetBlock(path string, attributes map[string]any) {
 	// Create new block
 	block := body.AppendNewBlock(blockType, labels)
 	setBlockAttributes(block.Body(), attributes)
-}
-
-// RemoveAttribute removes an attribute at the given path.
-//
-// If the path is invalid or the attribute doesn't exist, this method does nothing.
-func (b *Builder) RemoveAttribute(path string) {
-	parts := strings.Split(path, ".")
-	if len(parts) < 3 {
-		// Need at least: block_type.block_label.attribute_name
-		return
-	}
-
-	body := b.file.Body()
-	attributeName := parts[len(parts)-1]
-
-	// Navigate to the block containing the attribute
-	for i := 0; i < len(parts)-1; i += 2 {
-		if i+1 >= len(parts)-1 {
-			// We've reached the end
-			break
-		}
-
-		blockType := parts[i]
-		blockLabel := parts[i+1]
-
-		// Check if this is the last block before the attribute
-		if i+2 == len(parts)-1 {
-			// This is the block that contains the attribute
-			block := findBlock(body, blockType, []string{blockLabel})
-			if block != nil {
-				block.Body().RemoveAttribute(attributeName)
-			}
-			return
-		}
-
-		// Navigate deeper
-		block := findBlock(body, blockType, []string{blockLabel})
-		if block == nil {
-			return
-		}
-		body = block.Body()
-	}
 }
 
 // RemoveBlock removes a block at the given path.
@@ -274,4 +344,103 @@ func convertToCtyValue(value any) cty.Value {
 	default:
 		return cty.StringVal(fmt.Sprintf("%v", v))
 	}
+}
+
+// Provider-specific helper methods
+
+// ResourceAddress returns the Terraform resource address for provider-specific resources
+func (b *Builder) ResourceAddress(resourceType, resourceName string) string {
+	if b.providerType == "" {
+		return fmt.Sprintf("%s.%s", resourceType, resourceName)
+	}
+	providerPrefix := strings.ToLower(b.providerType)
+	providerPrefix = strings.ReplaceAll(providerPrefix, "_", "-")
+	return fmt.Sprintf("%s_%s.%s", providerPrefix, resourceType, resourceName)
+}
+
+// AddMesh adds a Kong Mesh resource
+func (b *Builder) AddMesh(meshName, meshResourceName string, spec map[string]any) *Builder {
+	if b.providerType == "" {
+		b.providerType = "kong-mesh"
+	}
+	providerPrefix := strings.ToLower(b.providerType)
+	providerPrefix = strings.ReplaceAll(providerPrefix, "_", "-")
+
+	attrs := map[string]any{
+		"provider": strings.ToLower(b.providerType),
+		"type":     "Mesh",
+		"name":     meshName,
+	}
+
+	// Merge spec into attrs
+	for k, v := range spec {
+		attrs[k] = v
+	}
+
+	b.SetBlock(fmt.Sprintf("resource.%s_mesh.%s", providerPrefix, meshResourceName), attrs)
+	return b
+}
+
+// RemoveMesh removes a mesh resource
+func (b *Builder) RemoveMesh(meshResourceName string) *Builder {
+	if b.providerType == "" {
+		b.providerType = "kong-mesh"
+	}
+	providerPrefix := strings.ToLower(b.providerType)
+	providerPrefix = strings.ReplaceAll(providerPrefix, "_", "-")
+	b.RemoveBlock(fmt.Sprintf("resource.%s_mesh.%s", providerPrefix, meshResourceName))
+	return b
+}
+
+// AddPolicy adds a policy resource
+func (b *Builder) AddPolicy(policyType, policyName, policyResourceName, meshRef string, spec map[string]any) *Builder {
+	if b.providerType == "" {
+		b.providerType = "kong-mesh"
+	}
+	providerPrefix := strings.ToLower(b.providerType)
+	providerPrefix = strings.ReplaceAll(providerPrefix, "_", "-")
+
+	// Convert policy type from snake_case to PascalCase for the type attribute
+	pascalCaseType := resourceTypeToPolicyType(policyType)
+
+	attrs := map[string]any{
+		"provider": strings.ToLower(b.providerType),
+		"type":     pascalCaseType,
+		"name":     policyName,
+		"mesh":     meshRef,
+	}
+
+	// Merge spec into attrs
+	for k, v := range spec {
+		attrs[k] = v
+	}
+
+	b.SetBlock(fmt.Sprintf("resource.%s_%s.%s", providerPrefix, policyType, policyResourceName), attrs)
+	return b
+}
+
+// Helper functions for policy type conversion
+
+func policyTypeToResourceType(policyType string) string {
+	// Convert "MeshTrafficPermission" to "mesh_traffic_permission"
+	result := ""
+	for i, r := range policyType {
+		if i > 0 && r >= 'A' && r <= 'Z' {
+			result += "_"
+		}
+		result += strings.ToLower(string(r))
+	}
+	return result
+}
+
+func resourceTypeToPolicyType(resourceType string) string {
+	// Convert "mesh_traffic_permission" to "MeshTrafficPermission"
+	parts := strings.Split(resourceType, "_")
+	result := ""
+	for _, part := range parts {
+		if len(part) > 0 {
+			result += strings.ToUpper(string(part[0])) + part[1:]
+		}
+	}
+	return result
 }

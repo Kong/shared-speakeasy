@@ -44,54 +44,13 @@ func CreateMeshAndModifyFields(
 	}
 	meshResourcePath := builder.ResourceAddress("mesh", meshConfig.ResourceName)
 
-	// Initial config
-	initialConfig := builder.AddMesh(meshConfig.MeshName, meshConfig.ResourceName, mustParseSpec(`
-		skip_creating_initial_policies = ["*"]
-	`)).Build()
-
-	// Extended config with additional fields
-	extendedConfig := builder.AddMesh(meshConfig.MeshName, meshConfig.ResourceName, mustParseSpec(`
-		skip_creating_initial_policies = ["*"]
-		constraints = {
-			dataplane_proxy = {
-				requirements = [{ tags = { key = "a" } }]
-				restrictions = []
-			}
-		}
-		routing = {
-			default_forbid_mesh_external_service_access = true
-		}
-	`)).Build()
-
-	// Config with routing field removed
-	withoutRoutingConfig := builder.AddMesh(meshConfig.MeshName, meshConfig.ResourceName, mustParseSpec(`
-		skip_creating_initial_policies = ["*"]
-		constraints = {
-			dataplane_proxy = {
-				requirements = [{ tags = { key = "a" } }]
-				restrictions = []
-			}
-		}
-		routing = {}
-	`)).Build()
-
-	// Config with requirements updated
-	updatedRequirementsConfig := builder.AddMesh(meshConfig.MeshName, meshConfig.ResourceName, mustParseSpec(`
-		skip_creating_initial_policies = ["*"]
-		constraints = {
-			dataplane_proxy = {
-				requirements = []
-				restrictions = []
-			}
-		}
-		routing = {}
-	`)).Build()
+	spec := mustParseSpec(`skip_creating_initial_policies = ["*"]`)
 
 	return resource.TestCase{
 		ProtoV6ProviderFactories: providerFactory,
 		Steps: []resource.TestStep{
 			{
-				Config: initialConfig,
+				Config: builder.AddMesh(meshConfig.MeshName, meshConfig.ResourceName, spec).Build(),
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
 						plancheck.ExpectResourceAction(meshResourcePath, plancheck.ResourceActionCreate),
@@ -99,7 +58,18 @@ func CreateMeshAndModifyFields(
 				},
 			},
 			{
-				Config: extendedConfig,
+				Config: func() string {
+					spec["constraints"] = map[string]any{
+						"dataplane_proxy": map[string]any{
+							"requirements": []any{map[string]any{"tags": map[string]any{"key": "a"}}},
+							"restrictions": []any{},
+						},
+					}
+					spec["routing"] = map[string]any{
+						"default_forbid_mesh_external_service_access": true,
+					}
+					return builder.AddMesh(meshConfig.MeshName, meshConfig.ResourceName, spec).Build()
+				}(),
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
 						plancheck.ExpectResourceAction(meshResourcePath, plancheck.ResourceActionUpdate),
@@ -111,7 +81,10 @@ func CreateMeshAndModifyFields(
 				},
 			},
 			{
-				Config: withoutRoutingConfig,
+				Config: func() string {
+					spec["routing"] = map[string]any{}
+					return builder.AddMesh(meshConfig.MeshName, meshConfig.ResourceName, spec).Build()
+				}(),
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
 						plancheck.ExpectResourceAction(meshResourcePath, plancheck.ResourceActionUpdate),
@@ -120,7 +93,10 @@ func CreateMeshAndModifyFields(
 				},
 			},
 			{
-				Config: updatedRequirementsConfig,
+				Config: func() string {
+					spec["constraints"].(map[string]any)["dataplane_proxy"].(map[string]any)["requirements"] = []any{}
+					return builder.AddMesh(meshConfig.MeshName, meshConfig.ResourceName, spec).Build()
+				}(),
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
 						plancheck.ExpectResourceAction(meshResourcePath, plancheck.ResourceActionUpdate),
@@ -157,11 +133,10 @@ func CreatePolicyAndModifyFields(
 		skip_creating_initial_policies = ["*"]
 	`))
 
-	// Initial config
 	policyResourcePath := builder.ResourceAddress("mesh_traffic_permission", policyConfig.ResourceName)
 	meshResourceAddress := builder.ResourceAddress("mesh", meshResourceName)
 
-	initialSpec := mustParseSpec(`
+	policySpec := mustParseSpec(`
 		labels = {}
 		spec = {
 			from = [{
@@ -175,53 +150,13 @@ func CreatePolicyAndModifyFields(
 			}]
 		}
 	`)
-	initialSpec["depends_on"] = []any{meshResourceAddress}
-	builder.AddPolicy(policyConfig.PolicyType, policyConfig.PolicyName, policyConfig.ResourceName, meshName, initialSpec)
-	initialConfig := builder.Build()
-
-	// Config with proxy_types kept
-	withProxyTypesSpec := mustParseSpec(`
-		labels = {}
-		spec = {
-			from = [{
-				target_ref = {
-					kind = "Mesh"
-					proxy_types = ["Sidecar"]
-				}
-				default = {
-					action = "Allow"
-				}
-			}]
-		}
-	`)
-	withProxyTypesSpec["depends_on"] = []any{meshResourceAddress}
-	builder.AddPolicy(policyConfig.PolicyType, policyConfig.PolicyName, policyConfig.ResourceName, meshName, withProxyTypesSpec)
-	withProxyTypesConfig := builder.Build()
-
-	// Config with proxy_types kept as Sidecar
-	emptyProxyTypesSpec := mustParseSpec(`
-		labels = {}
-		spec = {
-			from = [{
-				target_ref = {
-					kind = "Mesh"
-					proxy_types = ["Sidecar"]
-				}
-				default = {
-					action = "Allow"
-				}
-			}]
-		}
-	`)
-	emptyProxyTypesSpec["depends_on"] = []any{meshResourceAddress}
-	builder.AddPolicy(policyConfig.PolicyType, policyConfig.PolicyName, policyConfig.ResourceName, meshName, emptyProxyTypesSpec)
-	emptyProxyTypesConfig := builder.Build()
+	policySpec["depends_on"] = []any{meshResourceAddress}
 
 	return resource.TestCase{
 		ProtoV6ProviderFactories: providerFactory,
 		Steps: []resource.TestStep{
 			{
-				Config: initialConfig,
+				Config: builder.AddPolicy(policyConfig.PolicyType, policyConfig.PolicyName, policyConfig.ResourceName, meshName, policySpec).Build(),
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
 						plancheck.ExpectResourceAction(policyResourcePath, plancheck.ResourceActionCreate),
@@ -229,7 +164,7 @@ func CreatePolicyAndModifyFields(
 				},
 			},
 			{
-				Config: withProxyTypesConfig,
+				Config: builder.Build(),
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
 						plancheck.ExpectResourceAction(policyResourcePath, plancheck.ResourceActionNoop),
@@ -238,7 +173,7 @@ func CreatePolicyAndModifyFields(
 				},
 			},
 			{
-				Config: emptyProxyTypesConfig,
+				Config: builder.Build(),
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
 						plancheck.ExpectResourceAction(policyResourcePath, plancheck.ResourceActionNoop),
@@ -272,10 +207,6 @@ func NotImportedResourceShouldError(
 	policyResourcePath := builder.ResourceAddress("mesh_traffic_permission", policyConfig.ResourceName)
 	meshResourceAddress := builder.ResourceAddress("mesh", meshResourceName)
 
-	// Build mesh-only config for step 1
-	meshOnlyConfig := builder.Build()
-
-	// Add policy for step 2
 	policySpec := mustParseSpec(`
 		labels = {}
 		spec = {
@@ -291,18 +222,16 @@ func NotImportedResourceShouldError(
 		}
 	`)
 	policySpec["depends_on"] = []any{meshResourceAddress}
-	builder.AddPolicy(policyConfig.PolicyType, policyConfig.PolicyName, policyConfig.ResourceName, meshName, policySpec)
-	configWithPolicy := builder.Build()
 
 	return resource.TestCase{
 		ProtoV6ProviderFactories: providerFactory,
 		Steps: []resource.TestStep{
 			{
-				Config: meshOnlyConfig,
+				Config: builder.Build(),
 			},
 			{
 				PreConfig:   preConfigFn,
-				Config:      configWithPolicy,
+				Config:      builder.AddPolicy(policyConfig.PolicyType, policyConfig.PolicyName, policyConfig.ResourceName, meshName, policySpec).Build(),
 				ExpectError: expectedErr,
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{

@@ -3,8 +3,9 @@ package hclbuilder_test
 import (
 	"testing"
 
-	"github.com/Kong/shared-speakeasy/hclbuilder"
 	"github.com/stretchr/testify/require"
+
+	"github.com/Kong/shared-speakeasy/hclbuilder"
 )
 
 func TestBuilder_EmbedAndMutateExample(t *testing.T) {

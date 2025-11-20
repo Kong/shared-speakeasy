@@ -2,13 +2,14 @@ package kumalabels_test
 
 import (
 	"context"
-	"github.com/Kong/shared-speakeasy/customtypes/kumalabels"
-	"github.com/hashicorp/terraform-plugin-framework/attr"
-	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/stretchr/testify/require"
+
+	"github.com/Kong/shared-speakeasy/customtypes/kumalabels"
 )
 
 func TestKumaLabelsMapType_ValueFromMap(t *testing.T) {
@@ -67,6 +68,40 @@ func TestKumaLabelsMapType_ValueFromMap(t *testing.T) {
 			name:           "input is empty map — expect empty map",
 			input:          map[string]string{},
 			expectedOutput: map[string]string{},
+		},
+		{
+			name: "kuma.io/sidecar-injection removed when k8s.kuma.io/namespace is kong-mesh-system",
+			input: map[string]string{
+				"k8s.kuma.io/namespace":     "kong-mesh-system",
+				"kuma.io/sidecar-injection": "enabled",
+				"custom.label":              "value",
+			},
+			expectedOutput: map[string]string{
+				"custom.label": "value",
+			},
+		},
+		{
+			name: "kuma.io/sidecar-injection kept when k8s.kuma.io/namespace is not kong-mesh-system",
+			input: map[string]string{
+				"k8s.kuma.io/namespace":     "default",
+				"kuma.io/sidecar-injection": "enabled",
+				"custom.label":              "value",
+			},
+			expectedOutput: map[string]string{
+				"kuma.io/sidecar-injection": "enabled",
+				"custom.label":              "value",
+			},
+		},
+		{
+			name: "kuma.io/sidecar-injection kept when k8s.kuma.io/namespace is absent",
+			input: map[string]string{
+				"kuma.io/sidecar-injection": "enabled",
+				"custom.label":              "value",
+			},
+			expectedOutput: map[string]string{
+				"kuma.io/sidecar-injection": "enabled",
+				"custom.label":              "value",
+			},
 		},
 	}
 

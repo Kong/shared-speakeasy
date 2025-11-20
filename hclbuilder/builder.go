@@ -298,15 +298,6 @@ func deepMerge(a, b map[string]any) map[string]any {
 }
 
 // buildNestedStructure builds a nested map from dot-separated path and value
-func buildNestedStructure(parts []string, value any) map[string]any {
-	if len(parts) == 1 {
-		return map[string]any{parts[0]: value}
-	}
-
-	return map[string]any{
-		parts[0]: buildNestedStructureRecursive(parts[1:], value),
-	}
-}
 
 func buildNestedStructureRecursive(parts []string, value any) any {
 	if len(parts) == 1 {
@@ -548,18 +539,6 @@ func (b *Builder) AddPolicy(policyType, policyName, policyResourceName, meshRef 
 }
 
 // Helper functions for policy type conversion
-
-func policyTypeToResourceType(policyType string) string {
-	// Convert "MeshTrafficPermission" to "mesh_traffic_permission"
-	result := ""
-	for i, r := range policyType {
-		if i > 0 && r >= 'A' && r <= 'Z' {
-			result += "_"
-		}
-		result += strings.ToLower(string(r))
-	}
-	return result
-}
 
 func resourceTypeToPolicyType(resourceType string) string {
 	// Special case: mesh_secret -> Secret (not MeshSecret)

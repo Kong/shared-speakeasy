@@ -10,9 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
 )
 
-var (
-	_ basetypes.StringTypable = (*RFC3339PreciseToSecondType)(nil)
-)
+var _ basetypes.StringTypable = (*RFC3339PreciseToSecondType)(nil)
 
 // RFC3339PreciseToSecondType is an attribute type that represents a valid RFC 3339 string, but only to second precision.
 // This type is useful for timestamps that don't require millisecond precision.
@@ -52,7 +50,6 @@ func (t RFC3339PreciseToSecondType) ValueFromString(ctx context.Context, in base
 // for the provider to consume the data with.
 func (t RFC3339PreciseToSecondType) ValueFromTerraform(ctx context.Context, in tftypes.Value) (attr.Value, error) {
 	attrValue, err := t.StringType.ValueFromTerraform(ctx, in)
-
 	if err != nil {
 		return nil, err
 	}

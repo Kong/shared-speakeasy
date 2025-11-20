@@ -77,3 +77,56 @@ resource "kong-mesh_mesh" "default" {
 	// Should still have the resource
 	require.Contains(t, output, `resource "kong-mesh_mesh" "default"`)
 }
+
+func TestBuilder_AddAttributeFromHCLString(t *testing.T) {
+	mesh, err := FromString(`
+resource "kong-mesh_mesh" "default" {
+  type = "Mesh"
+  name = "default"
+}
+`)
+	require.NoError(t, err)
+
+	// Test simple list from HCL string
+	mesh.AddAttribute("skip_creating_initial_policies", `["*"]`)
+
+	output := mesh.Build()
+	t.Log(output)
+	require.Contains(t, output, `skip_creating_initial_policies = ["*"]`)
+
+	// Test nested object from HCL string
+	mesh.AddAttribute("constraints.dataplane_proxy.requirements", `[{ tags = { key = "a" } }]`)
+
+	output = mesh.Build()
+	t.Log(output)
+	require.Contains(t, output, "constraints")
+	require.Contains(t, output, "dataplane_proxy")
+	require.Contains(t, output, "requirements")
+	require.Contains(t, output, "tags")
+	require.Contains(t, output, `key = "a"`)
+}
+
+func TestBuilder_AddAttributeFromHCLStringComplex(t *testing.T) {
+	mesh, err := FromString(`
+resource "kong-mesh_mesh" "default" {
+  type = "Mesh"
+  name = "default"
+}
+`)
+	require.NoError(t, err)
+
+	// Test boolean
+	mesh.AddAttribute("routing.default_forbid_mesh_external_service_access", "true")
+
+	output := mesh.Build()
+	t.Log(output)
+	require.Contains(t, output, "routing")
+	require.Contains(t, output, "default_forbid_mesh_external_service_access = true")
+
+	// Test empty list
+	mesh.AddAttribute("constraints.dataplane_proxy.restrictions", "[]")
+
+	output = mesh.Build()
+	t.Log(output)
+	require.Contains(t, output, "restrictions = []")
+}

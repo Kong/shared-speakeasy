@@ -74,9 +74,9 @@ resource "kong-mesh_mesh" "%s" {
 			},
 			{
 				Config: builder.Add(mesh.
-					AddAttribute("constraints.dataplane_proxy.requirements", []any{map[string]any{"tags": map[string]any{"key": "a"}}}).
-					AddAttribute("constraints.dataplane_proxy.restrictions", []any{}).
-					AddAttribute("routing.default_forbid_mesh_external_service_access", true)).Build(),
+					AddAttribute("constraints.dataplane_proxy.requirements", `[{ tags = { key = "a" } }]`).
+					AddAttribute("constraints.dataplane_proxy.restrictions", `[]`).
+					AddAttribute("routing.default_forbid_mesh_external_service_access", "true")).Build(),
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
 						plancheck.ExpectResourceAction(meshResourcePath, plancheck.ResourceActionUpdate),
@@ -99,7 +99,7 @@ resource "kong-mesh_mesh" "%s" {
 			},
 			{
 				Config: builder.Add(mesh.
-					AddAttribute("constraints.dataplane_proxy.requirements", []any{})).Build(),
+					AddAttribute("constraints.dataplane_proxy.requirements", "[]")).Build(),
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
 						plancheck.ExpectResourceAction(meshResourcePath, plancheck.ResourceActionUpdate),

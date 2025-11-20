@@ -7,8 +7,10 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/gocty"
 )
 
 // Builder provides a fluent API for building and modifying HCL configurations
@@ -101,8 +103,10 @@ func (b *Builder) WriteFile(path string) error {
 // AddAttribute adds or updates an attribute on the first block in this builder.
 // This is designed for builders that contain a single resource/block.
 // The path uses dot notation for nested attributes.
-// Example: builder.AddAttribute("skip_creating_initial_policies", []string{"*"})
-// Example: builder.AddAttribute("routing.default_forbid_mesh_external_service_access", true)
+// Value can be a Go value or a string containing HCL expression.
+// Example: builder.AddAttribute("skip_creating_initial_policies", `["*"]`)
+// Example: builder.AddAttribute("routing.default_forbid_mesh_external_service_access", "true")
+// Example: builder.AddAttribute("constraints.dataplane_proxy.requirements", `[{ tags = { key = "a" } }]`)
 func (b *Builder) AddAttribute(path string, value any) *Builder {
 	blocks := b.file.Body().Blocks()
 	if len(blocks) == 0 {
@@ -113,6 +117,14 @@ func (b *Builder) AddAttribute(path string, value any) *Builder {
 	// Work with the first block (typical use case: single resource)
 	block := blocks[0]
 	parts := strings.Split(path, ".")
+
+	// If value is a string, try to parse it as HCL
+	if strValue, ok := value.(string); ok {
+		parsedValue := parseHCLValue(strValue)
+		if parsedValue != nil {
+			value = parsedValue
+		}
+	}
 
 	if len(parts) == 1 {
 		// Simple attribute
@@ -148,6 +160,77 @@ func (b *Builder) RemoveAttribute(path string) *Builder {
 	}
 
 	return b
+}
+
+// parseHCLValue attempts to parse a string as an HCL expression and return its Go value
+func parseHCLValue(hclExpr string) any {
+	// Wrap in a dummy attribute to make it valid HCL
+	wrapped := fmt.Sprintf("dummy = %s", hclExpr)
+
+	// Parse using hclparse to evaluate the expression
+	parser := hclparse.NewParser()
+	file, diags := parser.ParseHCL([]byte(wrapped), "<inline>")
+	if diags.HasErrors() {
+		return nil
+	}
+
+	attrs, diags := file.Body.JustAttributes()
+	if diags.HasErrors() {
+		return nil
+	}
+
+	if dummyAttr, ok := attrs["dummy"]; ok {
+		val, diags := dummyAttr.Expr.Value(nil) // nil context for static evaluation
+		if diags.HasErrors() {
+			return nil
+		}
+		return convertCtyToGo(val)
+	}
+
+	return nil
+}
+
+// convertCtyToGo converts a cty.Value to a Go value
+func convertCtyToGo(val cty.Value) any {
+	if val.IsNull() {
+		return nil
+	}
+
+	ty := val.Type()
+
+	switch {
+	case ty == cty.String:
+		return val.AsString()
+	case ty == cty.Number:
+		var f float64
+		_ = gocty.FromCtyValue(val, &f)
+		// Check if it's actually an integer
+		if f == float64(int64(f)) {
+			return int64(f)
+		}
+		return f
+	case ty == cty.Bool:
+		return val.True()
+	case ty.IsListType() || ty.IsTupleType():
+		var result []any
+		it := val.ElementIterator()
+		for it.Next() {
+			_, elemVal := it.Element()
+			result = append(result, convertCtyToGo(elemVal))
+		}
+		return result
+	case ty.IsMapType() || ty.IsObjectType():
+		result := make(map[string]any)
+		it := val.ElementIterator()
+		for it.Next() {
+			keyVal, elemVal := it.Element()
+			key := keyVal.AsString()
+			result[key] = convertCtyToGo(elemVal)
+		}
+		return result
+	default:
+		return nil
+	}
 }
 
 // buildNestedStructure builds a nested map from dot-separated path and value

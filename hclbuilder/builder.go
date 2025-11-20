@@ -146,10 +146,31 @@ func (b *Builder) AddAttribute(path string, value any) *Builder {
 		// Simple attribute
 		block.Body().SetAttributeValue(path, convertToCtyValue(value))
 	} else {
-		// Nested attribute - build the full structure from the parts
-		nested := buildNestedStructureRecursive(parts[1:], value)
-		// Set the root attribute with the nested structure
-		block.Body().SetAttributeValue(parts[0], convertToCtyValue(nested))
+		// Nested attribute - need to merge with existing value
+		rootAttr := parts[0]
+
+		// Get existing value if present
+		var existingValue any
+		if attr := block.Body().GetAttribute(rootAttr); attr != nil {
+			// Convert the expression tokens to string and parse it
+			exprTokens := attr.Expr().BuildTokens(nil)
+			exprStr := string(exprTokens.Bytes())
+			existingValue = parseHCLValue(exprStr)
+		}
+
+		// Build the new nested structure
+		newNested := buildNestedStructureRecursive(parts[1:], value)
+
+		// Merge with existing value if it's a map
+		var finalValue any
+		if existingMap, ok := existingValue.(map[string]any); ok {
+			finalValue = deepMerge(existingMap, newNested.(map[string]any))
+		} else {
+			finalValue = newNested
+		}
+
+		// Set the root attribute with the merged structure
+		block.Body().SetAttributeValue(rootAttr, convertToCtyValue(finalValue))
 	}
 
 	return b
@@ -247,6 +268,33 @@ func convertCtyToGo(val cty.Value) any {
 	default:
 		return nil
 	}
+}
+
+// deepMerge recursively merges two maps, with values from 'b' taking precedence
+func deepMerge(a, b map[string]any) map[string]any {
+	result := make(map[string]any)
+
+	// Copy all keys from 'a'
+	for k, v := range a {
+		result[k] = v
+	}
+
+	// Merge keys from 'b'
+	for k, v := range b {
+		if existingV, exists := result[k]; exists {
+			// If both values are maps, merge them recursively
+			if existingMap, ok := existingV.(map[string]any); ok {
+				if newMap, ok := v.(map[string]any); ok {
+					result[k] = deepMerge(existingMap, newMap)
+					continue
+				}
+			}
+		}
+		// Otherwise, value from 'b' takes precedence
+		result[k] = v
+	}
+
+	return result
 }
 
 // buildNestedStructure builds a nested map from dot-separated path and value
@@ -514,6 +562,10 @@ func policyTypeToResourceType(policyType string) string {
 }
 
 func resourceTypeToPolicyType(resourceType string) string {
+	// Special case: mesh_secret -> Secret (not MeshSecret)
+	if resourceType == "mesh_secret" {
+		return "Secret"
+	}
 	// Convert "mesh_traffic_permission" to "MeshTrafficPermission"
 	parts := strings.Split(resourceType, "_")
 	result := ""

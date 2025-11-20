@@ -52,7 +52,6 @@ func CreateMeshAndModifyFields(
 ) resource.TestCase {
 	builder := NewWithProvider(string(meshConfig.Provider), meshConfig.ServerURL)
 	meshResourcePath := builder.ResourceAddress("mesh", meshConfig.ResourceName)
-
 	mesh, _ := FromString(fmt.Sprintf(`
 resource "kong-mesh_mesh" "%s" {
   type  = "Mesh"
@@ -60,7 +59,6 @@ resource "kong-mesh_mesh" "%s" {
   skip_creating_initial_policies = ["*"]
 }
 `, meshConfig.ResourceName, meshConfig.MeshName))
-
 	return resource.TestCase{
 		ProtoV6ProviderFactories: providerFactory,
 		Steps: []resource.TestStep{
@@ -129,9 +127,15 @@ func CreatePolicyAndModifyFields(
 	// Create mesh first for the policy tests
 	meshResourceName := "test_mesh"
 	meshName := "policy-test-mesh"
-	builder.AddMesh(meshName, meshResourceName, mustParseSpec(`
-		skip_creating_initial_policies = ["*"]
-	`))
+
+	mesh, _ := FromString(fmt.Sprintf(`
+resource "%s_mesh" "%s" {
+  type  = "Mesh"
+  name  = "%s"
+  skip_creating_initial_policies = ["*"]
+}
+`, builder.ProviderPrefix(), meshResourceName, meshName))
+	builder.Add(mesh)
 
 	policyResourcePath := builder.ResourceAddress("mesh_traffic_permission", policyConfig.ResourceName)
 	meshResourceAddress := builder.ResourceAddress("mesh", meshResourceName)
@@ -151,7 +155,6 @@ func CreatePolicyAndModifyFields(
 		}
 	`)
 	policySpec["depends_on"] = []any{meshResourceAddress}
-
 	return resource.TestCase{
 		ProtoV6ProviderFactories: providerFactory,
 		Steps: []resource.TestStep{
@@ -197,13 +200,18 @@ func NotImportedResourceShouldError(
 	// Create mesh first
 	meshResourceName := "test_mesh"
 	meshName := "policy-test-mesh-2"
-	builder.AddMesh(meshName, meshResourceName, mustParseSpec(`
-		skip_creating_initial_policies = ["*"]
-	`))
+
+	mesh, _ := FromString(fmt.Sprintf(`
+resource "%s_mesh" "%s" {
+  type  = "Mesh"
+  name  = "%s"
+  skip_creating_initial_policies = ["*"]
+}
+`, builder.ProviderPrefix(), meshResourceName, meshName))
+	builder.Add(mesh)
 
 	policyResourcePath := builder.ResourceAddress("mesh_traffic_permission", policyConfig.ResourceName)
 	meshResourceAddress := builder.ResourceAddress("mesh", meshResourceName)
-
 	policySpec := mustParseSpec(`
 		labels = {}
 		spec = {
@@ -219,7 +227,6 @@ func NotImportedResourceShouldError(
 		}
 	`)
 	policySpec["depends_on"] = []any{meshResourceAddress}
-
 	return resource.TestCase{
 		ProtoV6ProviderFactories: providerFactory,
 		Steps: []resource.TestStep{
@@ -245,20 +252,17 @@ func NotImportedResourceShouldError(
 func mustParseSpec(hclAttrs string) map[string]any {
 	// Wrap in a dummy block to make it valid HCL
 	wrapped := fmt.Sprintf("dummy {\n%s\n}", hclAttrs)
-
 	// Validate syntax using FromString (uses hclwrite for syntax check)
 	_, err := FromString(wrapped)
 	if err != nil {
 		panic(fmt.Sprintf("invalid HCL syntax: %s", err))
 	}
-
 	// Parse and evaluate using hclparse (needed for expression evaluation)
 	parser := hclparse.NewParser()
 	file, diags := parser.ParseHCL([]byte(wrapped), "<inline>")
 	if diags.HasErrors() {
 		panic(fmt.Sprintf("failed to parse: %s", diags.Error()))
 	}
-
 	// Extract the dummy block
 	bodyContent, _, diags := file.Body.PartialContent(&hcl.BodySchema{
 		Blocks: []hcl.BlockHeaderSchema{{Type: "dummy"}},
@@ -266,13 +270,11 @@ func mustParseSpec(hclAttrs string) map[string]any {
 	if diags.HasErrors() || len(bodyContent.Blocks) == 0 {
 		panic("failed to extract dummy block")
 	}
-
 	// Get attributes from the dummy block
 	attrs, diags := bodyContent.Blocks[0].Body.JustAttributes()
 	if diags.HasErrors() {
 		panic(fmt.Sprintf("failed to get attributes: %s", diags.Error()))
 	}
-
 	result := make(map[string]any)
 	for name, attr := range attrs {
 		val, diags := attr.Expr.Value(nil)
@@ -281,7 +283,6 @@ func mustParseSpec(hclAttrs string) map[string]any {
 		}
 		result[name] = ctyToGo(val)
 	}
-
 	return result
 }
 
@@ -290,9 +291,7 @@ func ctyToGo(val cty.Value) any {
 	if val.IsNull() {
 		return nil
 	}
-
 	ty := val.Type()
-
 	switch {
 	case ty == cty.String:
 		return val.AsString()

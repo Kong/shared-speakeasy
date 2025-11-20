@@ -15,15 +15,15 @@ import (
 
 // Builder provides a fluent API for building and modifying HCL configurations
 type Builder struct {
-	file         *hclwrite.File
-	providerType string // Optional: used for provider-specific helpers
+	file          *hclwrite.File
+	providerType  string            // Optional: used for provider-specific helpers
 	addedBuilders map[*Builder]bool // Track which builders have been added
 }
 
 // New creates a new empty HCL builder
 func New() *Builder {
 	return &Builder{
-		file: hclwrite.NewEmptyFile(),
+		file:          hclwrite.NewEmptyFile(),
 		addedBuilders: make(map[*Builder]bool),
 	}
 }
@@ -447,37 +447,22 @@ func convertToCtyValue(value any) cty.Value {
 
 // Provider-specific helper methods
 
+// ProviderPrefix returns the normalized provider prefix (e.g., "kong-mesh" from "kong_mesh")
+func (b *Builder) ProviderPrefix() string {
+	if b.providerType == "" {
+		return ""
+	}
+	prefix := strings.ToLower(b.providerType)
+	prefix = strings.ReplaceAll(prefix, "_", "-")
+	return prefix
+}
+
 // ResourceAddress returns the Terraform resource address for provider-specific resources
 func (b *Builder) ResourceAddress(resourceType, resourceName string) string {
 	if b.providerType == "" {
 		return fmt.Sprintf("%s.%s", resourceType, resourceName)
 	}
-	providerPrefix := strings.ToLower(b.providerType)
-	providerPrefix = strings.ReplaceAll(providerPrefix, "_", "-")
-	return fmt.Sprintf("%s_%s.%s", providerPrefix, resourceType, resourceName)
-}
-
-// AddMesh adds a Kong Mesh resource
-func (b *Builder) AddMesh(meshName, meshResourceName string, spec map[string]any) *Builder {
-	if b.providerType == "" {
-		b.providerType = "kong-mesh"
-	}
-	providerPrefix := strings.ToLower(b.providerType)
-	providerPrefix = strings.ReplaceAll(providerPrefix, "_", "-")
-
-	attrs := map[string]any{
-		"provider": strings.ToLower(b.providerType),
-		"type":     "Mesh",
-		"name":     meshName,
-	}
-
-	// Merge spec into attrs
-	for k, v := range spec {
-		attrs[k] = v
-	}
-
-	b.SetBlock(fmt.Sprintf("resource.%s_mesh.%s", providerPrefix, meshResourceName), attrs)
-	return b
+	return fmt.Sprintf("%s_%s.%s", b.ProviderPrefix(), resourceType, resourceName)
 }
 
 // RemoveMesh removes a mesh resource
@@ -485,9 +470,7 @@ func (b *Builder) RemoveMesh(meshResourceName string) *Builder {
 	if b.providerType == "" {
 		b.providerType = "kong-mesh"
 	}
-	providerPrefix := strings.ToLower(b.providerType)
-	providerPrefix = strings.ReplaceAll(providerPrefix, "_", "-")
-	b.RemoveBlock(fmt.Sprintf("resource.%s_mesh.%s", providerPrefix, meshResourceName))
+	b.RemoveBlock(fmt.Sprintf("resource.%s_mesh.%s", b.ProviderPrefix(), meshResourceName))
 	return b
 }
 
@@ -496,8 +479,6 @@ func (b *Builder) AddPolicy(policyType, policyName, policyResourceName, meshRef 
 	if b.providerType == "" {
 		b.providerType = "kong-mesh"
 	}
-	providerPrefix := strings.ToLower(b.providerType)
-	providerPrefix = strings.ReplaceAll(providerPrefix, "_", "-")
 
 	// Convert policy type from snake_case to PascalCase for the type attribute
 	pascalCaseType := resourceTypeToPolicyType(policyType)
@@ -514,7 +495,7 @@ func (b *Builder) AddPolicy(policyType, policyName, policyResourceName, meshRef 
 		attrs[k] = v
 	}
 
-	b.SetBlock(fmt.Sprintf("resource.%s_%s.%s", providerPrefix, policyType, policyResourceName), attrs)
+	b.SetBlock(fmt.Sprintf("resource.%s_%s.%s", b.ProviderPrefix(), policyType, policyResourceName), attrs)
 	return b
 }
 

@@ -17,12 +17,14 @@ import (
 type Builder struct {
 	file         *hclwrite.File
 	providerType string // Optional: used for provider-specific helpers
+	addedBuilders map[*Builder]bool // Track which builders have been added
 }
 
 // New creates a new empty HCL builder
 func New() *Builder {
 	return &Builder{
 		file: hclwrite.NewEmptyFile(),
+		addedBuilders: make(map[*Builder]bool),
 	}
 }
 
@@ -58,7 +60,10 @@ func FromFile(path string) (*Builder, error) {
 		return nil, fmt.Errorf("parsing HCL: %s", diags.Error())
 	}
 
-	return &Builder{file: file}, nil
+	return &Builder{
+		file:          file,
+		addedBuilders: make(map[*Builder]bool),
+	}, nil
 }
 
 // FromString parses an HCL configuration from a string
@@ -68,7 +73,10 @@ func FromString(content string) (*Builder, error) {
 		return nil, fmt.Errorf("parsing HCL: %s", diags.Error())
 	}
 
-	return &Builder{file: file}, nil
+	return &Builder{
+		file:          file,
+		addedBuilders: make(map[*Builder]bool),
+	}, nil
 }
 
 // Build returns the HCL configuration as a string
@@ -81,6 +89,14 @@ func (b *Builder) Add(other *Builder) *Builder {
 	if other == nil || other.file == nil {
 		return b
 	}
+
+	// Check if this builder has already been added
+	if b.addedBuilders[other] {
+		return b
+	}
+
+	// Mark this builder as added
+	b.addedBuilders[other] = true
 
 	// Merge all blocks from the other builder into this one
 	for _, block := range other.file.Body().Blocks() {

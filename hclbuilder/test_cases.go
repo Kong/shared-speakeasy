@@ -32,7 +32,9 @@ type MeshConfig struct {
 	MeshName     string
 	ResourceName string
 	Provider     ProviderType
-	ServerURL    string // Optional server URL, defaults to http://localhost:5681
+	ServerURL    string   // Optional server URL, defaults to http://localhost:5681
+	Builder      *Builder // Optional pre-configured builder (for Konnect with control planes)
+	MeshHCL      string   // Optional HCL string for the mesh resource (for custom configurations)
 }
 
 // PolicyConfig holds policy configuration
@@ -42,23 +44,17 @@ type PolicyConfig struct {
 	ResourceName string
 	MeshRef      string
 	Provider     ProviderType
-	ServerURL    string // Optional server URL, defaults to http://localhost:5681
+	ServerURL    string   // Optional server URL, defaults to http://localhost:5681
+	Builder      *Builder // Optional pre-configured builder (for Konnect with control planes)
 }
 
 // CreateMeshAndModifyFields creates a mesh and modifies fields on it
 func CreateMeshAndModifyFields(
 	providerFactory map[string]func() (tfprotov6.ProviderServer, error),
-	meshConfig MeshConfig,
+	builder *Builder,
+	mesh *Builder,
 ) resource.TestCase {
-	builder := NewWithProvider(string(meshConfig.Provider), meshConfig.ServerURL)
-	meshResourcePath := builder.ResourceAddress("mesh", meshConfig.ResourceName)
-	mesh, _ := FromString(fmt.Sprintf(`
-resource "kong-mesh_mesh" "%s" {
-  type  = "Mesh"
-  name  = "%s"
-  skip_creating_initial_policies = ["*"]
-}
-`, meshConfig.ResourceName, meshConfig.MeshName))
+	meshResourcePath := builder.ResourceAddress("mesh", mesh.ResourceName())
 	return resource.TestCase{
 		ProtoV6ProviderFactories: providerFactory,
 		Steps: []resource.TestStep{
@@ -106,7 +102,7 @@ resource "kong-mesh_mesh" "%s" {
 				},
 			},
 			{
-				Config: builder.RemoveMesh(meshConfig.ResourceName).Build(),
+				Config: builder.RemoveMesh(mesh.ResourceName()).Build(),
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
 						plancheck.ExpectResourceAction(meshResourcePath, plancheck.ResourceActionDestroy),
@@ -122,7 +118,7 @@ func CreatePolicyAndModifyFields(
 	providerFactory map[string]func() (tfprotov6.ProviderServer, error),
 	policyConfig PolicyConfig,
 ) resource.TestCase {
-	builder := NewWithProvider(string(policyConfig.Provider), policyConfig.ServerURL)
+	builder := NewWithProvider(policyConfig.Provider, policyConfig.ServerURL)
 
 	// Create mesh first for the policy tests
 	meshResourceName := "test_mesh"
@@ -134,7 +130,7 @@ resource "%s_mesh" "%s" {
   name  = "%s"
   skip_creating_initial_policies = ["*"]
 }
-`, builder.ProviderPrefix(), meshResourceName, meshName))
+`, builder.ProviderType, meshResourceName, meshName))
 	builder.Add(mesh)
 
 	policyResourcePath := builder.ResourceAddress("mesh_traffic_permission", policyConfig.ResourceName)
@@ -195,7 +191,7 @@ func NotImportedResourceShouldError(
 	preConfigFn func(),
 ) resource.TestCase {
 	expectedErr := regexp.MustCompile(`MeshTrafficPermission already exists`)
-	builder := NewWithProvider(string(policyConfig.Provider), policyConfig.ServerURL)
+	builder := NewWithProvider(policyConfig.Provider, policyConfig.ServerURL)
 
 	// Create mesh first
 	meshResourceName := "test_mesh"
@@ -207,7 +203,7 @@ resource "%s_mesh" "%s" {
   name  = "%s"
   skip_creating_initial_policies = ["*"]
 }
-`, builder.ProviderPrefix(), meshResourceName, meshName))
+`, builder.ProviderType, meshResourceName, meshName))
 	builder.Add(mesh)
 
 	policyResourcePath := builder.ResourceAddress("mesh_traffic_permission", policyConfig.ResourceName)
@@ -252,7 +248,7 @@ func ShouldBeAbleToStoreSecrets(
 	providerFactory map[string]func() (tfprotov6.ProviderServer, error),
 	secretConfig PolicyConfig,
 ) resource.TestCase {
-	builder := NewWithProvider(string(secretConfig.Provider), secretConfig.ServerURL)
+	builder := NewWithProvider(secretConfig.Provider, secretConfig.ServerURL)
 
 	// Create mesh
 	meshResourceName := "test_mesh"

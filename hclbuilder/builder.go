@@ -15,9 +15,10 @@ import (
 
 // Builder provides a fluent API for building and modifying HCL configurations
 type Builder struct {
-	file          *hclwrite.File
-	providerType  string            // Optional: used for provider-specific helpers
-	addedBuilders map[*Builder]bool // Track which builders have been added
+	file             *hclwrite.File
+	ProviderType     ProviderType
+	ProviderProperty ProviderType
+	addedBuilders    map[*Builder]bool
 }
 
 // New creates a new empty HCL builder
@@ -29,23 +30,8 @@ func New() *Builder {
 }
 
 // NewWithProvider creates a new builder with a provider block
-func NewWithProvider(provider string, serverURL string) *Builder {
-	b := New()
-	b.providerType = provider
-
-	// Add provider block
-	providerName := strings.ToLower(provider)
-	providerName = strings.ReplaceAll(providerName, "_", "-")
-
-	if serverURL == "" {
-		serverURL = "http://localhost:5681"
-	}
-
-	b.SetBlock(fmt.Sprintf("provider.%s", providerName), map[string]any{
-		"server_url": serverURL,
-	})
-
-	return b
+func NewWithProvider(provider ProviderType, serverURL string) *Builder {
+	return New().WithProvider(provider, serverURL)
 }
 
 // FromFile loads an HCL configuration from a file
@@ -82,6 +68,21 @@ func FromString(content string) (*Builder, error) {
 // Build returns the HCL configuration as a string
 func (b *Builder) Build() string {
 	return string(b.file.Bytes())
+}
+
+// NewWithProvider creates a new builder with a provider block
+func (b *Builder) WithProvider(provider ProviderType, serverURL string) *Builder {
+	b.ProviderType = provider
+
+	if serverURL == "" {
+		serverURL = "http://localhost:5681"
+	}
+
+	b.SetBlock(fmt.Sprintf("provider.%s", provider), map[string]any{
+		"server_url": serverURL,
+	})
+
+	return b
 }
 
 // Add embeds another builder's content into this builder
@@ -377,16 +378,18 @@ func (b *Builder) SetBlock(path string, attributes map[string]any) {
 // RemoveBlock removes a block at the given path.
 //
 // If the path is invalid or the block doesn't exist, this method does nothing.
-func (b *Builder) RemoveBlock(path string) {
+func (b *Builder) RemoveBlock(path string) *Builder {
 	parts := strings.Split(path, ".")
 	if len(parts) < 2 {
-		return
+		return b
 	}
 
 	blockType := parts[0]
 	labels := parts[1:]
 
 	removeBlock(b.file.Body(), blockType, labels)
+
+	return b
 }
 
 // Helper functions
@@ -486,44 +489,37 @@ func convertToCtyValue(value any) cty.Value {
 
 // Provider-specific helper methods
 
-// ProviderPrefix returns the normalized provider prefix (e.g., "kong-mesh" from "kong_mesh")
-func (b *Builder) ProviderPrefix() string {
-	if b.providerType == "" {
-		return ""
-	}
-	prefix := strings.ToLower(b.providerType)
-	prefix = strings.ReplaceAll(prefix, "_", "-")
-	return prefix
-}
-
 // ResourceAddress returns the Terraform resource address for provider-specific resources
 func (b *Builder) ResourceAddress(resourceType, resourceName string) string {
-	if b.providerType == "" {
+	if b.ProviderType == "" {
 		return fmt.Sprintf("%s.%s", resourceType, resourceName)
 	}
-	return fmt.Sprintf("%s_%s.%s", b.ProviderPrefix(), resourceType, resourceName)
+	return fmt.Sprintf("%s_%s.%s", b.ProviderType, resourceType, resourceName)
 }
 
 // RemoveMesh removes a mesh resource
 func (b *Builder) RemoveMesh(meshResourceName string) *Builder {
-	if b.providerType == "" {
-		b.providerType = "kong-mesh"
+	return b.RemoveBlock(fmt.Sprintf("resource.%s_mesh.%s", b.ProviderType, meshResourceName))
+}
+
+// AddControlPlane adds a mesh control plane resource (for Konnect providers)
+func (b *Builder) AddControlPlane(resourceName, name, description string) *Builder {
+	attrs := map[string]any{
+		"name":        name,
+		"description": description,
 	}
-	b.RemoveBlock(fmt.Sprintf("resource.%s_mesh.%s", b.ProviderPrefix(), meshResourceName))
+
+	b.SetBlock(fmt.Sprintf("resource.%s_mesh_control_plane.%s", b.ProviderProperty, resourceName), attrs)
 	return b
 }
 
 // AddPolicy adds a policy resource
 func (b *Builder) AddPolicy(policyType, policyName, policyResourceName, meshRef string, spec map[string]any) *Builder {
-	if b.providerType == "" {
-		b.providerType = "kong-mesh"
-	}
-
 	// Convert policy type from snake_case to PascalCase for the type attribute
 	pascalCaseType := resourceTypeToPolicyType(policyType)
 
 	attrs := map[string]any{
-		"provider": strings.ToLower(b.providerType),
+		"provider": strings.ToLower(string(b.ProviderProperty)),
 		"type":     pascalCaseType,
 		"name":     policyName,
 		"mesh":     meshRef,
@@ -534,8 +530,30 @@ func (b *Builder) AddPolicy(policyType, policyName, policyResourceName, meshRef 
 		attrs[k] = v
 	}
 
-	b.SetBlock(fmt.Sprintf("resource.%s_%s.%s", b.ProviderPrefix(), policyType, policyResourceName), attrs)
+	b.SetBlock(fmt.Sprintf("resource.%s_%s.%s", b.ProviderProperty, policyType, policyResourceName), attrs)
 	return b
+}
+
+func (b *Builder) ResourceName() string {
+	blocks := b.file.Body().Blocks()
+	if len(blocks) == 0 {
+		return ""
+	}
+
+	block := blocks[0]
+	labels := block.Labels()
+	if len(labels) == 0 {
+		return ""
+	}
+
+	// For resources, the first label is the resource type, second is the name
+	// e.g., resource "konnect_mesh_control_plane" "my_meshcontrolplane"
+	// labels[0] = "konnect_mesh_control_plane", labels[1] = "my_meshcontrolplane"
+	if len(labels) >= 2 {
+		return labels[1]
+	}
+
+	return labels[0]
 }
 
 // Helper functions for policy type conversion

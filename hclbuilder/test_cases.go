@@ -28,7 +28,7 @@ func CreateMeshAndModifyFields(
 	builder *Builder,
 	mesh *Builder,
 ) resource.TestCase {
-	meshResourcePath := builder.ResourceAddress("mesh", mesh.ResourceName())
+	meshResourcePath := mesh.ResourcePath()
 	return resource.TestCase{
 		ProtoV6ProviderFactories: providerFactory,
 		Steps: []resource.TestStep{
@@ -76,7 +76,7 @@ func CreateMeshAndModifyFields(
 				},
 			},
 			{
-				Config: builder.RemoveMesh(mesh.ResourceName()).Build(),
+				Config: builder.Remove(mesh).Build(),
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
 						plancheck.ExpectResourceAction(meshResourcePath, plancheck.ResourceActionDestroy),

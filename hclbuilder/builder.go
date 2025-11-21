@@ -8,6 +8,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclparse"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/gocty"
@@ -112,6 +113,33 @@ func (b *Builder) Add(other *Builder) *Builder {
 	return b
 }
 
+// Remove removes a builder's content from this builder
+func (b *Builder) Remove(other *Builder) *Builder {
+	if other == nil || other.file == nil {
+		return b
+	}
+
+	// Unmark this builder as added
+	delete(b.addedBuilders, other)
+
+	// Get the resource path from the other builder to identify what to remove
+	resourcePath := other.ResourcePath()
+	if resourcePath == "" {
+		return b
+	}
+
+	// Parse the resource path to get type and name
+	parts := strings.Split(resourcePath, ".")
+	if len(parts) != 2 {
+		return b
+	}
+	resourceType := parts[0]
+	resourceName := parts[1]
+
+	// Remove the matching block
+	return b.RemoveBlock(fmt.Sprintf("resource.%s.%s", resourceType, resourceName))
+}
+
 // WriteFile writes the HCL configuration to a file
 func (b *Builder) WriteFile(path string) error {
 	return os.WriteFile(path, b.file.Bytes(), 0o600)
@@ -136,16 +164,28 @@ func (b *Builder) AddAttribute(path string, value any) *Builder {
 	parts := strings.Split(path, ".")
 
 	// If value is a string, try to parse it as HCL
+	useRaw := false
 	if strValue, ok := value.(string); ok {
 		parsedValue := parseHCLValue(strValue)
 		if parsedValue != nil {
 			value = parsedValue
+		} else if isHCLExpression(strValue) {
+			// It's a valid HCL expression but can't be evaluated (e.g., a reference)
+			// Use SetAttributeRaw to preserve it as-is
+			useRaw = true
+			value = strValue
 		}
 	}
 
 	if len(parts) == 1 {
 		// Simple attribute
-		block.Body().SetAttributeValue(path, convertToCtyValue(value))
+		if useRaw {
+			block.Body().SetAttributeRaw(path, hclwrite.Tokens{
+				{Type: hclsyntax.TokenIdent, Bytes: []byte(value.(string))},
+			})
+		} else {
+			block.Body().SetAttributeValue(path, convertToCtyValue(value))
+		}
 	} else {
 		// Nested attribute - need to merge with existing value
 		rootAttr := parts[0]
@@ -198,6 +238,22 @@ func (b *Builder) RemoveAttribute(path string) *Builder {
 	}
 
 	return b
+}
+
+// isHCLExpression checks if a string is a valid HCL expression (even if it can't be evaluated)
+func isHCLExpression(hclExpr string) bool {
+	wrapped := fmt.Sprintf("dummy = %s", hclExpr)
+	parser := hclparse.NewParser()
+	file, diags := parser.ParseHCL([]byte(wrapped), "<inline>")
+	if diags.HasErrors() {
+		return false
+	}
+	attrs, diags := file.Body.JustAttributes()
+	if diags.HasErrors() {
+		return false
+	}
+	_, ok := attrs["dummy"]
+	return ok
 }
 
 // parseHCLValue attempts to parse a string as an HCL expression and return its Go value
@@ -607,16 +663,22 @@ func (b *Builder) DependsOn(other *Builder) *Builder {
 	// Get existing depends_on if present
 	var existingDeps []string
 	if attr := block.Body().GetAttribute("depends_on"); attr != nil {
-		// Parse existing depends_on
+		// Parse existing depends_on from raw tokens
 		exprTokens := attr.Expr().BuildTokens(nil)
-		exprStr := string(exprTokens.Bytes())
-		if parsedValue := parseHCLValue(exprStr); parsedValue != nil {
-			if depsList, ok := parsedValue.([]any); ok {
-				for _, dep := range depsList {
-					if depStr, ok := dep.(string); ok {
-						existingDeps = append(existingDeps, depStr)
-					}
-				}
+
+		// Extract identifiers from the token stream
+		// Format: [ identifier, identifier, ... ]
+		inList := false
+		for _, token := range exprTokens {
+			if token.Type == hclsyntax.TokenOBrack {
+				inList = true
+				continue
+			}
+			if token.Type == hclsyntax.TokenCBrack {
+				break
+			}
+			if inList && token.Type == hclsyntax.TokenIdent {
+				existingDeps = append(existingDeps, string(token.Bytes))
 			}
 		}
 	}
@@ -631,13 +693,18 @@ func (b *Builder) DependsOn(other *Builder) *Builder {
 	// Add new dependency
 	existingDeps = append(existingDeps, resourcePath)
 
-	// Convert to []any for SetAttributeValue
-	deps := make([]any, len(existingDeps))
+	// Build depends_on as raw tokens to avoid quoting the references
+	var tokens hclwrite.Tokens
+	tokens = append(tokens, &hclwrite.Token{Type: hclsyntax.TokenOBrack, Bytes: []byte{'['}})
 	for i, dep := range existingDeps {
-		deps[i] = dep
+		if i > 0 {
+			tokens = append(tokens, &hclwrite.Token{Type: hclsyntax.TokenComma, Bytes: []byte{',', ' '}})
+		}
+		tokens = append(tokens, &hclwrite.Token{Type: hclsyntax.TokenIdent, Bytes: []byte(dep)})
 	}
+	tokens = append(tokens, &hclwrite.Token{Type: hclsyntax.TokenCBrack, Bytes: []byte{']'}})
 
-	block.Body().SetAttributeValue("depends_on", convertToCtyValue(deps))
+	block.Body().SetAttributeRaw("depends_on", tokens)
 
 	return b
 }

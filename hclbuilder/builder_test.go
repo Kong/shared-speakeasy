@@ -3,6 +3,7 @@ package hclbuilder_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -628,5 +629,92 @@ func TestDependsOn_ExistingDependencies(t *testing.T) {
 
 	result := mesh.Build()
 	goldenFile := filepath.Join("testdata", "depends-on-existing.golden.tf")
+	assertGoldenFile(t, goldenFile, result)
+}
+
+func TestAddAttribute_ReferenceExpression_Simple(t *testing.T) {
+	inputFile := filepath.Join("testdata", "add-attribute-reference-simple.input.tf")
+	mesh, err := hclbuilder.FromFile(inputFile)
+	require.NoError(t, err)
+
+	mesh.AddAttribute("cp_id", "konnect_mesh_control_plane.my_cp.id")
+
+	result := mesh.Build()
+	goldenFile := filepath.Join("testdata", "add-attribute-reference-simple.golden.tf")
+	assertGoldenFile(t, goldenFile, result)
+}
+
+func TestAddAttribute_ReferenceExpression_Nested(t *testing.T) {
+	inputFile := filepath.Join("testdata", "add-attribute-reference-nested.input.tf")
+	policy, err := hclbuilder.FromFile(inputFile)
+	require.NoError(t, err)
+
+	policy.AddAttribute("mesh_ref", "konnect_mesh.default.name")
+
+	result := policy.Build()
+	goldenFile := filepath.Join("testdata", "add-attribute-reference-nested.golden.tf")
+	assertGoldenFile(t, goldenFile, result)
+}
+
+func TestAddAttribute_ReferenceExpression_WithIndex(t *testing.T) {
+	inputFile := filepath.Join("testdata", "add-attribute-reference-index.input.tf")
+	resource, err := hclbuilder.FromFile(inputFile)
+	require.NoError(t, err)
+
+	resource.AddAttribute("value", "data.aws_instances.example.ids[0]")
+
+	result := resource.Build()
+	goldenFile := filepath.Join("testdata", "add-attribute-reference-index.golden.tf")
+	assertGoldenFile(t, goldenFile, result)
+}
+
+func TestAddAttribute_ReferenceExpression_MultiLevel(t *testing.T) {
+	inputFile := filepath.Join("testdata", "add-attribute-reference-multilevel.input.tf")
+	resource, err := hclbuilder.FromFile(inputFile)
+	require.NoError(t, err)
+
+	resource.AddAttribute("config", "module.networking.vpc.subnet.cidr_block")
+
+	result := resource.Build()
+	goldenFile := filepath.Join("testdata", "add-attribute-reference-multilevel.golden.tf")
+	assertGoldenFile(t, goldenFile, result)
+}
+
+func TestAddAttribute_LiteralString_NotReference(t *testing.T) {
+	inputFile := filepath.Join("testdata", "add-attribute-reference-simple.input.tf")
+	resource, err := hclbuilder.FromFile(inputFile)
+	require.NoError(t, err)
+
+	// This is a literal string that happens to contain text, not a reference
+	resource.AddAttribute("description", "This is just text")
+
+	got := resource.Build()
+	// Should be quoted since it's a literal string
+	if !strings.Contains(got, `description = "This is just text"`) {
+		t.Errorf("Expected literal string to be quoted, got:\n%s", got)
+	}
+}
+
+func TestAddAttribute_ReferenceExpression_WithFunction(t *testing.T) {
+	inputFile := filepath.Join("testdata", "add-attribute-reference-function.input.tf")
+	resource, err := hclbuilder.FromFile(inputFile)
+	require.NoError(t, err)
+
+	resource.AddAttribute("timestamp", "timestamp()")
+
+	result := resource.Build()
+	goldenFile := filepath.Join("testdata", "add-attribute-reference-function.golden.tf")
+	assertGoldenFile(t, goldenFile, result)
+}
+
+func TestAddAttribute_ReferenceExpression_Conditional(t *testing.T) {
+	inputFile := filepath.Join("testdata", "add-attribute-reference-conditional.input.tf")
+	resource, err := hclbuilder.FromFile(inputFile)
+	require.NoError(t, err)
+
+	resource.AddAttribute("enabled", "var.environment == \"production\" ? true : false")
+
+	result := resource.Build()
+	goldenFile := filepath.Join("testdata", "add-attribute-reference-conditional.golden.tf")
 	assertGoldenFile(t, goldenFile, result)
 }

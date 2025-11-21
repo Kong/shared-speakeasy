@@ -93,7 +93,6 @@ func BeforeRequest(matchFeatureRequest func(r *http.Request) bool, matchPolicies
 			req.Body = io.NopCloser(bytes.NewReader(newBody))
 			req.ContentLength = int64(len(newBody))
 			req.Header.Set("Content-Type", "application/json")
-
 		}
 		return req, nil
 	}

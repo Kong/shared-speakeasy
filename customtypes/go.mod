@@ -3,7 +3,7 @@ module github.com/Kong/shared-speakeasy/customtypes
 go 1.23.4
 
 require (
-	github.com/hashicorp/terraform-plugin-framework v1.15.1
+	github.com/hashicorp/terraform-plugin-framework v1.16.1
 	github.com/hashicorp/terraform-plugin-go v0.27.0
 	github.com/stretchr/testify v1.11.1
 )

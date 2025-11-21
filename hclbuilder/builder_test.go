@@ -528,3 +528,105 @@ func TestAddAttribute_ComplexDeepMerge(t *testing.T) {
 	goldenFile := filepath.Join("testdata", "add-attribute-complex-deep-merge.golden.tf")
 	assertGoldenFile(t, goldenFile, result)
 }
+
+// Test ResourcePath()
+func TestResourcePath(t *testing.T) {
+	inputFile := filepath.Join("testdata", "resource-path.input.tf")
+	builder, err := hclbuilder.FromFile(inputFile)
+	require.NoError(t, err)
+
+	path := builder.ResourcePath()
+	require.Equal(t, "konnect_mesh_control_plane.my_meshcontrolplane", path)
+}
+
+// Test ResourcePath() - empty builder
+func TestResourcePath_Empty(t *testing.T) {
+	builder := hclbuilder.New()
+
+	path := builder.ResourcePath()
+	require.Empty(t, path)
+}
+
+// Test ResourcePath() - non-resource block
+func TestResourcePath_NonResource(t *testing.T) {
+	inputFile := filepath.Join("testdata", "resource-path-non-resource.input.tf")
+	builder, err := hclbuilder.FromFile(inputFile)
+	require.NoError(t, err)
+
+	path := builder.ResourcePath()
+	require.Empty(t, path)
+}
+
+// Test DependsOn() - single dependency
+func TestDependsOn_Single(t *testing.T) {
+	cpFile := filepath.Join("testdata", "depends-on-single-cp.input.tf")
+	cp, err := hclbuilder.FromFile(cpFile)
+	require.NoError(t, err)
+
+	meshFile := filepath.Join("testdata", "depends-on-single-mesh.input.tf")
+	mesh, err := hclbuilder.FromFile(meshFile)
+	require.NoError(t, err)
+
+	mesh.DependsOn(cp)
+
+	result := mesh.Build()
+	goldenFile := filepath.Join("testdata", "depends-on-single.golden.tf")
+	assertGoldenFile(t, goldenFile, result)
+}
+
+// Test DependsOn() - multiple dependencies
+func TestDependsOn_Multiple(t *testing.T) {
+	cpFile := filepath.Join("testdata", "depends-on-multiple-cp.input.tf")
+	cp, err := hclbuilder.FromFile(cpFile)
+	require.NoError(t, err)
+
+	cp2File := filepath.Join("testdata", "depends-on-multiple-cp2.input.tf")
+	cp2, err := hclbuilder.FromFile(cp2File)
+	require.NoError(t, err)
+
+	meshFile := filepath.Join("testdata", "depends-on-multiple-mesh.input.tf")
+	mesh, err := hclbuilder.FromFile(meshFile)
+	require.NoError(t, err)
+
+	mesh.DependsOn(cp)
+	mesh.DependsOn(cp2)
+
+	result := mesh.Build()
+	goldenFile := filepath.Join("testdata", "depends-on-multiple.golden.tf")
+	assertGoldenFile(t, goldenFile, result)
+}
+
+// Test DependsOn() - duplicate dependency should not add twice
+func TestDependsOn_Duplicate(t *testing.T) {
+	cpFile := filepath.Join("testdata", "depends-on-duplicate-cp.input.tf")
+	cp, err := hclbuilder.FromFile(cpFile)
+	require.NoError(t, err)
+
+	meshFile := filepath.Join("testdata", "depends-on-duplicate-mesh.input.tf")
+	mesh, err := hclbuilder.FromFile(meshFile)
+	require.NoError(t, err)
+
+	mesh.DependsOn(cp)
+	mesh.DependsOn(cp)
+
+	result := mesh.Build()
+	goldenFile := filepath.Join("testdata", "depends-on-duplicate.golden.tf")
+	assertGoldenFile(t, goldenFile, result)
+}
+
+// Test DependsOn() - adding to existing depends_on
+func TestDependsOn_ExistingDependencies(t *testing.T) {
+	cpFile := filepath.Join("testdata", "depends-on-existing-cp.input.tf")
+	cp, err := hclbuilder.FromFile(cpFile)
+	require.NoError(t, err)
+
+	meshFile := filepath.Join("testdata", "depends-on-existing-mesh.input.tf")
+	mesh, err := hclbuilder.FromFile(meshFile)
+	require.NoError(t, err)
+
+	mesh.DependsOn(cp)
+
+	result := mesh.Build()
+	goldenFile := filepath.Join("testdata", "depends-on-existing.golden.tf")
+	assertGoldenFile(t, goldenFile, result)
+}

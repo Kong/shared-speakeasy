@@ -556,6 +556,92 @@ func (b *Builder) ResourceName() string {
 	return labels[0]
 }
 
+// ResourcePath returns the full Terraform resource path (e.g., "konnect_mesh_control_plane.my_meshcontrolplane")
+// from the first block in this builder. Returns empty string if no blocks exist.
+func (b *Builder) ResourcePath() string {
+	blocks := b.file.Body().Blocks()
+	if len(blocks) == 0 {
+		return ""
+	}
+
+	block := blocks[0]
+	blockType := block.Type()
+	labels := block.Labels()
+
+	// Only process resource blocks
+	if blockType != "resource" {
+		return ""
+	}
+
+	if len(labels) < 2 {
+		return ""
+	}
+
+	// For resources: resource "type" "name" -> type.name
+	// e.g., resource "konnect_mesh_control_plane" "cp1" -> konnect_mesh_control_plane.cp1
+	return fmt.Sprintf("%s.%s", labels[0], labels[1])
+}
+
+// DependsOn adds a depends_on attribute to the first block in this builder,
+// referencing the resource path from the other builder.
+// Example:
+//
+//	cp := hclbuilder.New()
+//	mesh := hclbuilder.New()
+//	mesh.DependsOn(cp)
+//
+// This will add: depends_on = [konnect_mesh_control_plane.my_meshcontrolplane]
+func (b *Builder) DependsOn(other *Builder) *Builder {
+	blocks := b.file.Body().Blocks()
+	if len(blocks) == 0 {
+		return b
+	}
+
+	resourcePath := other.ResourcePath()
+	if resourcePath == "" {
+		return b
+	}
+
+	block := blocks[0]
+
+	// Get existing depends_on if present
+	var existingDeps []string
+	if attr := block.Body().GetAttribute("depends_on"); attr != nil {
+		// Parse existing depends_on
+		exprTokens := attr.Expr().BuildTokens(nil)
+		exprStr := string(exprTokens.Bytes())
+		if parsedValue := parseHCLValue(exprStr); parsedValue != nil {
+			if depsList, ok := parsedValue.([]any); ok {
+				for _, dep := range depsList {
+					if depStr, ok := dep.(string); ok {
+						existingDeps = append(existingDeps, depStr)
+					}
+				}
+			}
+		}
+	}
+
+	// Check if dependency already exists
+	for _, dep := range existingDeps {
+		if dep == resourcePath {
+			return b
+		}
+	}
+
+	// Add new dependency
+	existingDeps = append(existingDeps, resourcePath)
+
+	// Convert to []any for SetAttributeValue
+	deps := make([]any, len(existingDeps))
+	for i, dep := range existingDeps {
+		deps[i] = dep
+	}
+
+	block.Body().SetAttributeValue("depends_on", convertToCtyValue(deps))
+
+	return b
+}
+
 // Helper functions for policy type conversion
 
 func resourceTypeToPolicyType(resourceType string) string {

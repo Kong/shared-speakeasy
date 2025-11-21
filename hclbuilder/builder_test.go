@@ -435,3 +435,96 @@ func TestBuild(t *testing.T) {
 	require.Contains(t, result, "test")
 	require.Contains(t, result, "example")
 }
+
+// Test Add() - adding same builder twice should only add once
+func TestAdd_DuplicateBuilder(t *testing.T) {
+	mainFile, err := hclbuilder.FromFile(filepath.Join("testdata", "add-duplicate-main.input.tf"))
+	require.NoError(t, err)
+
+	mesh, err := hclbuilder.FromFile(filepath.Join("testdata", "add-duplicate-mesh.input.tf"))
+	require.NoError(t, err)
+
+	// Add mesh twice
+	mainFile.Add(mesh)
+	mainFile.Add(mesh)
+
+	// Should only be added once
+	result := mainFile.Build()
+	goldenFile := filepath.Join("testdata", "add-duplicate.golden.tf")
+	assertGoldenFile(t, goldenFile, result)
+}
+
+// Test Add() - merging attributes from other builder
+func TestAdd_MergeAttributes(t *testing.T) {
+	mainFile, err := hclbuilder.FromFile(filepath.Join("testdata", "add-merge-attributes-main.input.tf"))
+	require.NoError(t, err)
+
+	other, err := hclbuilder.FromFile(filepath.Join("testdata", "add-merge-attributes-other.input.tf"))
+	require.NoError(t, err)
+
+	mainFile.Add(other)
+
+	result := mainFile.Build()
+	goldenFile := filepath.Join("testdata", "add-merge-attributes.golden.tf")
+	assertGoldenFile(t, goldenFile, result)
+}
+
+// Test AddAttribute() - deep merge nested structures
+func TestAddAttribute_DeepMerge(t *testing.T) {
+	inputFile := filepath.Join("testdata", "add-attribute-deep-merge.input.tf")
+	mesh, err := hclbuilder.FromFile(inputFile)
+	require.NoError(t, err)
+
+	// Add a nested attribute that should merge with existing structure
+	mesh.AddAttribute("constraints.dataplane_proxy.restrictions", []string{"restriction-1"})
+
+	result := mesh.Build()
+	goldenFile := filepath.Join("testdata", "add-attribute-deep-merge.golden.tf")
+	assertGoldenFile(t, goldenFile, result)
+}
+
+// Test AddAttribute() - parsing and converting existing expressions
+func TestAddAttribute_ParseExistingExpression(t *testing.T) {
+	inputFile := filepath.Join("testdata", "add-attribute-parse-expression.input.tf")
+	mesh, err := hclbuilder.FromFile(inputFile)
+	require.NoError(t, err)
+
+	// Add to existing nested structure by parsing existing expression
+	mesh.AddAttribute("routing.locality_aware_load_balancing", false)
+
+	result := mesh.Build()
+	goldenFile := filepath.Join("testdata", "add-attribute-parse-expression.golden.tf")
+	assertGoldenFile(t, goldenFile, result)
+}
+
+// Test SetBlock() - with numeric values (int, int64, float64)
+func TestSetBlock_NumericValues(t *testing.T) {
+	builder := hclbuilder.New()
+	builder.SetBlock("resource.test.numeric", map[string]any{
+		"int_value":    42,
+		"int64_value":  int64(9223372036854775807),
+		"float_value":  3.14159,
+		"string_value": "test",
+		"bool_value":   true,
+	})
+
+	result := builder.Build()
+	goldenFile := filepath.Join("testdata", "set-block-numeric-values.golden.tf")
+	assertGoldenFile(t, goldenFile, result)
+}
+
+// Test AddAttribute() - complex nested merge scenario
+func TestAddAttribute_ComplexDeepMerge(t *testing.T) {
+	inputFile := filepath.Join("testdata", "add-attribute-complex-deep-merge.input.tf")
+	mesh, err := hclbuilder.FromFile(inputFile)
+	require.NoError(t, err)
+
+	// First add to create nested structure
+	mesh.AddAttribute("constraints.dataplane_proxy.requirements", `[{ tags = { key = "a" } }]`)
+	// Then add another key to the same nested level
+	mesh.AddAttribute("constraints.dataplane_proxy.restrictions", []string{"restriction-1"})
+
+	result := mesh.Build()
+	goldenFile := filepath.Join("testdata", "add-attribute-complex-deep-merge.golden.tf")
+	assertGoldenFile(t, goldenFile, result)
+}

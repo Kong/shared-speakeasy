@@ -223,6 +223,8 @@ func (b *Builder) AddAttribute(path string, value any) *Builder {
 
 // RemoveAttribute removes an attribute from the first block in this builder.
 // Uses dot notation for nested attributes.
+// Example: builder.RemoveAttribute("routing.default_forbid_mesh_external_service_access")
+// will remove only the nested field, leaving other fields in "routing" intact.
 func (b *Builder) RemoveAttribute(path string) *Builder {
 	blocks := b.file.Body().Blocks()
 	if len(blocks) == 0 {
@@ -236,9 +238,31 @@ func (b *Builder) RemoveAttribute(path string) *Builder {
 		// Simple attribute
 		block.Body().RemoveAttribute(path)
 	} else {
-		// For nested attributes, we'd need to read the structure, modify it, and write it back
-		// For now, just remove the top-level attribute
-		block.Body().RemoveAttribute(parts[0])
+		// Nested attribute - read the structure, modify it, and write it back
+		rootAttr := parts[0]
+
+		// Get existing value if present
+		attr := block.Body().GetAttribute(rootAttr)
+		if attr == nil {
+			// Attribute doesn't exist, nothing to remove
+			return b
+		}
+
+		// Convert the expression tokens to string and parse it
+		exprTokens := attr.Expr().BuildTokens(nil)
+		exprStr := string(exprTokens.Bytes())
+		existingValue := parseHCLValue(exprStr)
+
+		// Navigate to the nested structure and remove the specific field
+		if modified, ok := removeFromNested(existingValue, parts[1:]); ok {
+			if modified == nil {
+				// The entire structure was removed
+				block.Body().RemoveAttribute(rootAttr)
+			} else {
+				// Update with the modified structure
+				block.Body().SetAttributeValue(rootAttr, convertToCtyValue(modified))
+			}
+		}
 	}
 
 	return b
@@ -373,6 +397,73 @@ func buildNestedStructureRecursive(parts []string, value any) any {
 	return map[string]any{
 		parts[0]: buildNestedStructureRecursive(parts[1:], value),
 	}
+}
+
+// removeFromNested removes a nested field from a map structure.
+// Returns the modified structure and true if successful, or the original value and false if not found.
+// If the removal results in an empty map, returns nil and true.
+func removeFromNested(value any, path []string) (any, bool) {
+	if len(path) == 0 {
+		return nil, true
+	}
+
+	valueMap, ok := value.(map[string]any)
+	if !ok {
+		return value, false
+	}
+
+	if len(path) == 1 {
+		// This is the field to remove
+		if _, exists := valueMap[path[0]]; !exists {
+			return value, false
+		}
+
+		// Make a copy and remove the field
+		result := make(map[string]any)
+		for k, v := range valueMap {
+			if k != path[0] {
+				result[k] = v
+			}
+		}
+
+		// If the map is now empty, return nil to indicate removal of parent
+		if len(result) == 0 {
+			return nil, true
+		}
+
+		return result, true
+	}
+
+	// Recursive case
+	nestedValue, exists := valueMap[path[0]]
+	if !exists {
+		return value, false
+	}
+
+	modifiedNested, ok := removeFromNested(nestedValue, path[1:])
+	if !ok {
+		return value, false
+	}
+
+	// Make a copy and update the nested field
+	result := make(map[string]any)
+	for k, v := range valueMap {
+		if k == path[0] {
+			if modifiedNested != nil {
+				result[k] = modifiedNested
+			}
+			// else: don't include it (it was removed)
+		} else {
+			result[k] = v
+		}
+	}
+
+	// If the map is now empty, return nil to indicate removal of parent
+	if len(result) == 0 {
+		return nil, true
+	}
+
+	return result, true
 }
 
 // SetAttribute sets an attribute value at the given path.

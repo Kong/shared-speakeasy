@@ -718,3 +718,19 @@ func TestAddAttribute_ReferenceExpression_Conditional(t *testing.T) {
 	goldenFile := filepath.Join("testdata", "add-attribute-reference-conditional.golden.tf")
 	assertGoldenFile(t, goldenFile, result)
 }
+
+// Test RemoveAttribute() - nested attribute removal
+// This test demonstrates that RemoveAttribute should only remove the nested field,
+// not the entire top-level attribute
+func TestRemoveAttribute_Nested(t *testing.T) {
+	inputFile := filepath.Join("testdata", "remove-attribute-nested.input.tf")
+	mesh, err := hclbuilder.FromFile(inputFile)
+	require.NoError(t, err)
+
+	// Remove only the nested field, not the entire top-level attribute
+	mesh.RemoveAttribute("routing.default_forbid_mesh_external_service_access")
+
+	result := mesh.Build()
+	goldenFile := filepath.Join("testdata", "remove-attribute-nested.golden.tf")
+	assertGoldenFile(t, goldenFile, result)
+}

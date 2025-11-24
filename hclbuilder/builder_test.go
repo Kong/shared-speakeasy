@@ -734,3 +734,19 @@ func TestRemoveAttribute_Nested(t *testing.T) {
 	goldenFile := filepath.Join("testdata", "remove-attribute-nested.golden.tf")
 	assertGoldenFile(t, goldenFile, result)
 }
+
+// Test RemoveAttribute() - deeply nested attribute removal (multi-level)
+// This test demonstrates that RemoveAttribute handles arbitrary nesting depth,
+// which Copilot's suggestion would not handle correctly
+func TestRemoveAttribute_DeeplyNested(t *testing.T) {
+	inputFile := filepath.Join("testdata", "remove-attribute-deeply-nested.input.tf")
+	mesh, err := hclbuilder.FromFile(inputFile)
+	require.NoError(t, err)
+
+	// Remove a deeply nested field: config.networking.advanced.timeout
+	mesh.RemoveAttribute("config.networking.advanced.timeout")
+
+	result := mesh.Build()
+	goldenFile := filepath.Join("testdata", "remove-attribute-deeply-nested.golden.tf")
+	assertGoldenFile(t, goldenFile, result)
+}

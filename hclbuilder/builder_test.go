@@ -223,7 +223,7 @@ func TestFromString_Invalid(t *testing.T) {
 	require.Contains(t, err.Error(), "parsing HCL")
 }
 
-// Test Add() - embed and mutate
+// Test Upsert() - embed and mutate
 func TestAdd_EmbedAndMutate(t *testing.T) {
 	// Create a main file with a provider
 	mainFile, err := hclbuilder.FromFile(filepath.Join("testdata", "add-embed-and-mutate-main.input.tf"))
@@ -233,8 +233,8 @@ func TestAdd_EmbedAndMutate(t *testing.T) {
 	mesh, err := hclbuilder.FromFile(filepath.Join("testdata", "add-embed-and-mutate-mesh.input.tf"))
 	require.NoError(t, err)
 
-	// Add mesh to main file
-	mainFile.Add(mesh)
+	// Upsert mesh to main file
+	mainFile.Upsert(mesh)
 
 	output1 := mainFile.Build()
 	require.Contains(t, output1, `provider "kong-mesh"`)
@@ -437,7 +437,7 @@ func TestBuild(t *testing.T) {
 	require.Contains(t, result, "example")
 }
 
-// Test Add() - adding same builder twice should only add once
+// Test Upsert() - adding same builder twice should only add once
 func TestAdd_DuplicateBuilder(t *testing.T) {
 	mainFile, err := hclbuilder.FromFile(filepath.Join("testdata", "add-duplicate-main.input.tf"))
 	require.NoError(t, err)
@@ -445,9 +445,9 @@ func TestAdd_DuplicateBuilder(t *testing.T) {
 	mesh, err := hclbuilder.FromFile(filepath.Join("testdata", "add-duplicate-mesh.input.tf"))
 	require.NoError(t, err)
 
-	// Add mesh twice
-	mainFile.Add(mesh)
-	mainFile.Add(mesh)
+	// Upsert mesh twice
+	mainFile.Upsert(mesh)
+	mainFile.Upsert(mesh)
 
 	// Should only be added once
 	result := mainFile.Build()
@@ -455,7 +455,7 @@ func TestAdd_DuplicateBuilder(t *testing.T) {
 	assertGoldenFile(t, goldenFile, result)
 }
 
-// Test Add() - merging attributes from other builder
+// Test Upsert() - merging attributes from other builder
 func TestAdd_MergeAttributes(t *testing.T) {
 	mainFile, err := hclbuilder.FromFile(filepath.Join("testdata", "add-merge-attributes-main.input.tf"))
 	require.NoError(t, err)
@@ -463,7 +463,7 @@ func TestAdd_MergeAttributes(t *testing.T) {
 	other, err := hclbuilder.FromFile(filepath.Join("testdata", "add-merge-attributes-other.input.tf"))
 	require.NoError(t, err)
 
-	mainFile.Add(other)
+	mainFile.Upsert(other)
 
 	result := mainFile.Build()
 	goldenFile := filepath.Join("testdata", "add-merge-attributes.golden.tf")
@@ -476,7 +476,7 @@ func TestAddAttribute_DeepMerge(t *testing.T) {
 	mesh, err := hclbuilder.FromFile(inputFile)
 	require.NoError(t, err)
 
-	// Add a nested attribute that should merge with existing structure
+	// Upsert a nested attribute that should merge with existing structure
 	mesh.AddAttribute("constraints.dataplane_proxy.restrictions", []string{"restriction-1"})
 
 	result := mesh.Build()
@@ -490,7 +490,7 @@ func TestAddAttribute_ParseExistingExpression(t *testing.T) {
 	mesh, err := hclbuilder.FromFile(inputFile)
 	require.NoError(t, err)
 
-	// Add to existing nested structure by parsing existing expression
+	// Upsert to existing nested structure by parsing existing expression
 	mesh.AddAttribute("routing.locality_aware_load_balancing", false)
 
 	result := mesh.Build()

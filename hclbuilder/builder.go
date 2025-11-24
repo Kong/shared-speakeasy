@@ -19,14 +19,14 @@ type Builder struct {
 	file             *hclwrite.File
 	ProviderType     ProviderType
 	ProviderProperty ProviderType
-	addedBuilders    map[*Builder]bool
+	upsertedBuilders map[*Builder]bool
 }
 
 // New creates a new empty HCL builder
 func New() *Builder {
 	return &Builder{
-		file:          hclwrite.NewEmptyFile(),
-		addedBuilders: make(map[*Builder]bool),
+		file:             hclwrite.NewEmptyFile(),
+		upsertedBuilders: make(map[*Builder]bool),
 	}
 }
 
@@ -48,8 +48,8 @@ func FromFile(path string) (*Builder, error) {
 	}
 
 	return &Builder{
-		file:          file,
-		addedBuilders: make(map[*Builder]bool),
+		file:             file,
+		upsertedBuilders: make(map[*Builder]bool),
 	}, nil
 }
 
@@ -61,8 +61,8 @@ func FromString(content string) (*Builder, error) {
 	}
 
 	return &Builder{
-		file:          file,
-		addedBuilders: make(map[*Builder]bool),
+		file:             file,
+		upsertedBuilders: make(map[*Builder]bool),
 	}, nil
 }
 
@@ -86,19 +86,19 @@ func (b *Builder) WithProvider(provider ProviderType, serverURL string) *Builder
 	return b
 }
 
-// Add embeds another builder's content into this builder
-func (b *Builder) Add(other *Builder) *Builder {
+// Upsert embeds another builder's content into this builder
+func (b *Builder) Upsert(other *Builder) *Builder {
 	if other == nil || other.file == nil {
 		return b
 	}
 
-	// Check if this builder has already been added
-	if b.addedBuilders[other] {
+	// Check if this builder has already been upserted
+	if b.upsertedBuilders[other] {
 		return b
 	}
 
-	// Mark this builder as added
-	b.addedBuilders[other] = true
+	// Mark this builder as upserted
+	b.upsertedBuilders[other] = true
 
 	// Merge all blocks from the other builder into this one
 	for _, block := range other.file.Body().Blocks() {
@@ -119,8 +119,8 @@ func (b *Builder) Remove(other *Builder) *Builder {
 		return b
 	}
 
-	// Unmark this builder as added
-	delete(b.addedBuilders, other)
+	// Unmark this builder as upserted
+	delete(b.upsertedBuilders, other)
 
 	// Get the resource path from the other builder to identify what to remove
 	resourcePath := other.ResourcePath()
@@ -791,7 +791,7 @@ func (b *Builder) DependsOn(other *Builder) *Builder {
 		}
 	}
 
-	// Add new dependency
+	// Upsert new dependency
 	existingDeps = append(existingDeps, resourcePath)
 
 	// Build depends_on as raw tokens to avoid quoting the references

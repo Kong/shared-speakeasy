@@ -13,13 +13,13 @@ import (
 func TestBuilder_KongMeshWithPolicy(t *testing.T) {
 	builder := tfbuilder.NewBuilder(tfbuilder.KongMesh, "http", "localhost", 5681)
 
-	// Add mesh
+	// Upsert mesh
 	builder.AddMesh(
 		tfbuilder.NewMeshBuilder("default", "mesh-1").
 			WithSpec(`skip_creating_initial_policies = [ "*" ]`),
 	)
 
-	// Add policy
+	// Upsert policy
 	builder.AddPolicy(
 		tfbuilder.NewPolicyBuilder("mesh_traffic_permission", "allow_all", "allow-all", "MeshTrafficPermission").
 			WithMeshRef("kong-mesh_mesh.default.name").

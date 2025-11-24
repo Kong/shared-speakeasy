@@ -33,7 +33,7 @@ func CreateMeshAndModifyFields(
 		ProtoV6ProviderFactories: providerFactory,
 		Steps: []resource.TestStep{
 			{
-				Config: builder.Add(mesh).Build(),
+				Config: builder.Upsert(mesh).Build(),
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
 						plancheck.ExpectResourceAction(meshResourcePath, plancheck.ResourceActionCreate),
@@ -41,7 +41,7 @@ func CreateMeshAndModifyFields(
 				},
 			},
 			{
-				Config: builder.Add(mesh.
+				Config: builder.Upsert(mesh.
 					AddAttribute("constraints.dataplane_proxy.requirements", `[{ tags = { key = "a" } }]`).
 					AddAttribute("constraints.dataplane_proxy.restrictions", `[]`).
 					AddAttribute("routing.default_forbid_mesh_external_service_access", "true")).Build(),
@@ -56,7 +56,7 @@ func CreateMeshAndModifyFields(
 				},
 			},
 			{
-				Config: builder.Add(mesh.
+				Config: builder.Upsert(mesh.
 					RemoveAttribute("routing")).Build(),
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
@@ -66,7 +66,7 @@ func CreateMeshAndModifyFields(
 				},
 			},
 			{
-				Config: builder.Add(mesh.
+				Config: builder.Upsert(mesh.
 					AddAttribute("constraints.dataplane_proxy.requirements", "[]")).Build(),
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
@@ -97,7 +97,7 @@ func CreatePolicyAndModifyFields(
 	policyResourcePath := policy.ResourcePath()
 	meshResourcePath := mesh.ResourcePath()
 
-	// Add dependency of policy on mesh
+	// Upsert dependency of policy on mesh
 	policy.DependsOn(mesh)
 
 	// Set policy spec using AddAttribute with HCL string
@@ -118,7 +118,7 @@ func CreatePolicyAndModifyFields(
 		ProtoV6ProviderFactories: providerFactory,
 		Steps: []resource.TestStep{
 			{
-				Config: builder.Add(mesh).Add(policy).Build(),
+				Config: builder.Upsert(mesh).Upsert(policy).Build(),
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
 						plancheck.ExpectResourceAction(meshResourcePath, plancheck.ResourceActionCreate),
@@ -127,7 +127,7 @@ func CreatePolicyAndModifyFields(
 				},
 			},
 			{
-				Config: builder.Add(mesh).Add(policy).Build(),
+				Config: builder.Upsert(mesh).Upsert(policy).Build(),
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
 						plancheck.ExpectResourceAction(policyResourcePath, plancheck.ResourceActionNoop),
@@ -136,7 +136,7 @@ func CreatePolicyAndModifyFields(
 				},
 			},
 			{
-				Config: builder.Add(mesh).Add(policy).Build(),
+				Config: builder.Upsert(mesh).Upsert(policy).Build(),
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
 						plancheck.ExpectResourceAction(policyResourcePath, plancheck.ResourceActionNoop),
@@ -160,7 +160,7 @@ func NotImportedResourceShouldError(
 
 	policyResourcePath := policy.ResourcePath()
 
-	// Add dependency of policy on mesh
+	// Upsert dependency of policy on mesh
 	policy.DependsOn(mesh)
 
 	// Set policy spec using AddAttribute with HCL string
@@ -181,11 +181,11 @@ func NotImportedResourceShouldError(
 		ProtoV6ProviderFactories: providerFactory,
 		Steps: []resource.TestStep{
 			{
-				Config: builder.Add(mesh).Build(),
+				Config: builder.Upsert(mesh).Build(),
 			},
 			{
 				PreConfig:   preConfigFn,
-				Config:      builder.Add(mesh).Add(policy).Build(),
+				Config:      builder.Upsert(mesh).Upsert(policy).Build(),
 				ExpectError: expectedErr,
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
@@ -209,7 +209,7 @@ func ShouldBeAbleToStoreSecrets(
 	scertResourcePath := scert.ResourcePath()
 	skeyResourcePath := skey.ResourcePath()
 
-	// Add dependencies
+	// Upsert dependencies
 	scert.DependsOn(mesh)
 	skey.DependsOn(mesh)
 
@@ -223,10 +223,10 @@ func ShouldBeAbleToStoreSecrets(
 		ProtoV6ProviderFactories: providerFactory,
 		Steps: []resource.TestStep{
 			{
-				Config: builder.Add(mesh).Build(),
+				Config: builder.Upsert(mesh).Build(),
 			},
 			{
-				Config: builder.Add(mesh).Add(scert).Build(),
+				Config: builder.Upsert(mesh).Upsert(scert).Build(),
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
 						plancheck.ExpectResourceAction(scertResourcePath, plancheck.ResourceActionCreate),
@@ -234,7 +234,7 @@ func ShouldBeAbleToStoreSecrets(
 				},
 			},
 			{
-				Config: builder.Add(mesh).Add(skey).Build(),
+				Config: builder.Upsert(mesh).Upsert(skey).Build(),
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
 						plancheck.ExpectResourceAction(skeyResourcePath, plancheck.ResourceActionCreate),
@@ -242,7 +242,7 @@ func ShouldBeAbleToStoreSecrets(
 				},
 			},
 			{
-				Config: builder.Add(mesh.AddAttribute("mtls.backends", `[
+				Config: builder.Upsert(mesh.AddAttribute("mtls.backends", `[
       {
         conf = {
           provided_certificate_authority_config = {
@@ -261,7 +261,7 @@ func ShouldBeAbleToStoreSecrets(
         name = "provided-1"
         type = "provided"
       }
-    ]`).AddAttribute("mtls.enabled_backend", `"provided-1"`)).Add(scert).Add(skey).Build(),
+    ]`).AddAttribute("mtls.enabled_backend", `"provided-1"`)).Upsert(scert).Upsert(skey).Build(),
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
 						plancheck.ExpectResourceAction(meshResourcePath, plancheck.ResourceActionUpdate),
@@ -269,7 +269,7 @@ func ShouldBeAbleToStoreSecrets(
 				},
 			},
 			{
-				Config: builder.Add(mesh.RemoveAttribute("mtls")).Add(scert).Add(skey).Build(),
+				Config: builder.Upsert(mesh.RemoveAttribute("mtls")).Upsert(scert).Upsert(skey).Build(),
 			},
 		},
 	}

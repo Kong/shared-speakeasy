@@ -205,7 +205,11 @@ func (b *Builder) AddAttribute(path string, value any) *Builder {
 		// Merge with existing value if it's a map
 		var finalValue any
 		if existingMap, ok := existingValue.(map[string]any); ok {
-			finalValue = deepMerge(existingMap, newNested.(map[string]any))
+			if newNestedMap, ok := newNested.(map[string]any); ok {
+				finalValue = deepMerge(existingMap, newNestedMap)
+			} else {
+				finalValue = newNested
+			}
 		} else {
 			finalValue = newNested
 		}

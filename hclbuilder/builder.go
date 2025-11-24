@@ -71,7 +71,7 @@ func (b *Builder) Build() string {
 	return string(b.file.Bytes())
 }
 
-// NewWithProvider creates a new builder with a provider block
+// WithProvider adds a provider block to the builder
 func (b *Builder) WithProvider(provider ProviderType, serverURL string) *Builder {
 	b.ProviderType = provider
 
@@ -265,6 +265,9 @@ func parseHCLValue(hclExpr string) any {
 	parser := hclparse.NewParser()
 	file, diags := parser.ParseHCL([]byte(wrapped), "<inline>")
 	if diags.HasErrors() {
+		return nil
+	}
+	if file == nil {
 		return nil
 	}
 

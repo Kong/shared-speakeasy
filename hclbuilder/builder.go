@@ -248,6 +248,9 @@ func isHCLExpression(hclExpr string) bool {
 	if diags.HasErrors() {
 		return false
 	}
+	if file == nil {
+		return false
+	}
 	attrs, diags := file.Body.JustAttributes()
 	if diags.HasErrors() {
 		return false

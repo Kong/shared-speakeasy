@@ -36,7 +36,6 @@ var nonMeshScopedResources = map[string]bool{
 	"MeshHostnameGenerator": true,
 	"MeshZoneEgress":        true,
 	"MeshZoneIngress":       true,
-	"MeshWorkload":          true,
 }
 
 func toLowerCamel(s string) string {

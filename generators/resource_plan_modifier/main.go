@@ -27,6 +27,7 @@ var resourceNameMappings = map[string]string{
 	"MeshSecret":            "Secret",
 	"MeshZoneEgress":        "ZoneEgress",
 	"MeshZoneIngress":       "ZoneIngress",
+	"MeshWorkload":          "Workload",
 }
 
 // nonMeshScopedResources defines resources that are not mesh-scoped

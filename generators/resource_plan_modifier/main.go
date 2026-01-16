@@ -27,6 +27,7 @@ var resourceNameMappings = map[string]string{
 	"MeshSecret":            "Secret",
 	"MeshZoneEgress":        "ZoneEgress",
 	"MeshZoneIngress":       "ZoneIngress",
+	"MeshWorkload":          "Workload",
 }
 
 // nonMeshScopedResources defines resources that are not mesh-scoped
@@ -35,6 +36,7 @@ var nonMeshScopedResources = map[string]bool{
 	"MeshHostnameGenerator": true,
 	"MeshZoneEgress":        true,
 	"MeshZoneIngress":       true,
+	"MeshWorkload":          true,
 }
 
 func toLowerCamel(s string) string {

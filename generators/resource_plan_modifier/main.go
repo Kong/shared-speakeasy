@@ -21,14 +21,6 @@ type TemplateParams struct {
 	SDKName            string // e.g., HostnameGenerator for MeshHostnameGenerator, Secret for MeshSecret
 }
 
-// nonMeshScopedResources defines resources that are not mesh-scoped
-var nonMeshScopedResources = map[string]bool{
-	"Mesh":                  true,
-	"MeshHostnameGenerator": true,
-	"MeshZoneEgress":        true,
-	"MeshZoneIngress":       true,
-}
-
 func toLowerCamel(s string) string {
 	if s == "" {
 		return ""
@@ -37,8 +29,8 @@ func toLowerCamel(s string) string {
 }
 
 func main() {
-	if len(os.Args) != 5 {
-		fmt.Println("Usage: go run main.go <outputPath or -> <ResourceName> <ProviderName> <SDKName>")
+	if len(os.Args) != 6 {
+		fmt.Println("Usage: go run main.go <outputPath or -> <ResourceName> <ProviderName> <SDKName> <MeshScoped>")
 		os.Exit(1)
 	}
 
@@ -46,13 +38,14 @@ func main() {
 	resourceName := os.Args[2]
 	providerName := os.Args[3]
 	sdkName := os.Args[4]
+	meshScoped := os.Args[5] == "true"
 
 	params := TemplateParams{
 		ResourceName:       resourceName,
 		ResourceVarName:    toLowerCamel(resourceName),
 		ResourceModelName:  resourceName + "ResourceModel",
 		ProviderName:       providerName,
-		MeshScopedResource: !nonMeshScopedResources[resourceName],
+		MeshScopedResource: meshScoped,
 		CPScopedResource:   providerName != "terraform-provider-kong-mesh",
 		SDKName:            sdkName,
 	}

@@ -21,15 +21,6 @@ type TemplateParams struct {
 	SDKName            string // e.g., HostnameGenerator for MeshHostnameGenerator, Secret for MeshSecret
 }
 
-// resourceNameMappings maps special resource names to their SDK names
-var resourceNameMappings = map[string]string{
-	"MeshHostnameGenerator": "HostnameGenerator",
-	"MeshSecret":            "Secret",
-	"MeshZoneEgress":        "ZoneEgress",
-	"MeshZoneIngress":       "ZoneIngress",
-	"MeshWorkload":          "Workload",
-}
-
 // nonMeshScopedResources defines resources that are not mesh-scoped
 var nonMeshScopedResources = map[string]bool{
 	"Mesh":                  true,
@@ -46,20 +37,15 @@ func toLowerCamel(s string) string {
 }
 
 func main() {
-	if len(os.Args) != 4 {
-		fmt.Println("Usage: go run main.go <outputPath or -> <ResourceName> <ProviderName>")
+	if len(os.Args) != 5 {
+		fmt.Println("Usage: go run main.go <outputPath or -> <ResourceName> <ProviderName> <SDKName>")
 		os.Exit(1)
 	}
 
 	outputPath := os.Args[1]
 	resourceName := os.Args[2]
 	providerName := os.Args[3]
-
-	// Determine SDK name from mapping, or use resource name as default
-	sdkName := resourceName
-	if mappedName, exists := resourceNameMappings[resourceName]; exists {
-		sdkName = mappedName
-	}
+	sdkName := os.Args[4]
 
 	params := TemplateParams{
 		ResourceName:       resourceName,

@@ -45,7 +45,7 @@ func BeforeRequest(matchFeatureRequest func(r *http.Request) bool, matchPolicies
 				},
 			}
 
-			if _, exists := bodyMap["features"]; !exists {
+			if !containsNonEmpty(bodyMap, "features") {
 				bodyMap["features"] = defaultFeatures
 			}
 
@@ -81,7 +81,7 @@ func BeforeRequest(matchFeatureRequest func(r *http.Request) bool, matchPolicies
 			}
 
 			// Define the default "skipCreatingInitialPolicies" value
-			if _, exists := bodyMap["skipCreatingInitialPolicies"]; !exists {
+			if !containsNonEmpty(bodyMap, "skipCreatingInitialPolicies") {
 				bodyMap["skipCreatingInitialPolicies"] = []string{"*"}
 			}
 
@@ -95,5 +95,21 @@ func BeforeRequest(matchFeatureRequest func(r *http.Request) bool, matchPolicies
 			req.Header.Set("Content-Type", "application/json")
 		}
 		return req, nil
+	}
+}
+
+func containsNonEmpty(obj map[string]interface{}, key string) bool {
+	value, exists := obj[key]
+	if !exists {
+		return false
+	}
+
+	switch v := value.(type) {
+	case []interface{}:
+		return len(v) > 0
+	case map[string]interface{}:
+		return len(v) > 0
+	default:
+		return value != nil
 	}
 }

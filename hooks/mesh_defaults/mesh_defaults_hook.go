@@ -8,7 +8,7 @@ import (
 )
 
 // BeforeRequest defaults mesh related fields:
-// for mesh control plane - the "features" field to include "MeshCreation" and "HostnameGeneratorCreation" with "enabled" set to false
+// for mesh control plane - the "features" field to include "MeshCreation" and "HostnameGeneratorCreation" with "enabled" set to false, and the "version" field to "v3"
 // for mesh - the "skipCreatingInitialPolicies" field to include "*".
 func BeforeRequest(matchFeatureRequest func(r *http.Request) bool, matchPoliciesRequest func(r *http.Request) bool) func(req *http.Request) (*http.Request, error) {
 	return func(req *http.Request) (*http.Request, error) {
@@ -47,6 +47,11 @@ func BeforeRequest(matchFeatureRequest func(r *http.Request) bool, matchPolicies
 
 			if _, exists := bodyMap["features"]; !exists {
 				bodyMap["features"] = defaultFeatures
+			}
+
+			// Default the "version" field to "v3"
+			if _, exists := bodyMap["version"]; !exists {
+				bodyMap["version"] = "v3"
 			}
 
 			newBody, err := json.Marshal(bodyMap)

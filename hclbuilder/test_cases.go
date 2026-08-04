@@ -89,10 +89,7 @@ func CreateMeshAndModifyFields(
 
 // CreateMeshWithMtlsAndModifyFields creates a mesh and modifies fields on it,
 // exercising `mtls` (a builtin CA backend) instead of `constraints`/`routing`.
-// Newer (v3) control planes don't round-trip `constraints` or
-// `routing.default_forbid_mesh_external_service_access` on read, so
-// CreateMeshAndModifyFields can't reach an empty refresh plan against them. This
-// variant modifies fields that do round-trip. The old function is kept for
+// V3 control planes don't have these fields. The old function is kept for
 // backwards compatibility.
 func CreateMeshWithMtlsAndModifyFields(
 	providerFactory map[string]func() (tfprotov6.ProviderServer, error),

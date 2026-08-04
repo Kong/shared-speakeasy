@@ -87,6 +87,66 @@ func CreateMeshAndModifyFields(
 	}
 }
 
+// CreateMeshWithMtlsAndModifyFields creates a mesh and modifies fields on it,
+// exercising `mtls` (a builtin CA backend) instead of `constraints`/`routing`.
+// Newer (v3) control planes don't round-trip `constraints` or
+// `routing.default_forbid_mesh_external_service_access` on read, so
+// CreateMeshAndModifyFields can't reach an empty refresh plan against them. This
+// variant modifies fields that do round-trip. The old function is kept for
+// backwards compatibility.
+func CreateMeshWithMtlsAndModifyFields(
+	providerFactory map[string]func() (tfprotov6.ProviderServer, error),
+	builder *Builder,
+	mesh *Builder,
+) resource.TestCase {
+	meshResourcePath := mesh.ResourcePath()
+	return resource.TestCase{
+		ProtoV6ProviderFactories: providerFactory,
+		Steps: []resource.TestStep{
+			{
+				Config: builder.Upsert(mesh).Build(),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction(meshResourcePath, plancheck.ResourceActionCreate),
+					},
+				},
+			},
+			{
+				Config: builder.Upsert(mesh.
+					AddAttribute("mtls.enabled_backend", `"ca-1"`).
+					AddAttribute("mtls.backends", `[{ name = "ca-1", type = "builtin" }]`)).Build(),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction(meshResourcePath, plancheck.ResourceActionUpdate),
+						plancheck.ExpectKnownValue(meshResourcePath, tfjsonpath.New("mtls").AtMapKey("enabled_backend"), knownvalue.StringExact("ca-1")),
+					},
+					PostApplyPreRefresh: []plancheck.PlanCheck{
+						plancheck.ExpectEmptyPlan(),
+					},
+				},
+			},
+			{
+				Config: builder.Upsert(mesh.
+					RemoveAttribute("mtls")).Build(),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction(meshResourcePath, plancheck.ResourceActionUpdate),
+						plancheck.ExpectKnownValue(meshResourcePath, tfjsonpath.New("mtls"), knownvalue.Null()),
+					},
+				},
+			},
+			{
+				Config: builder.Remove(mesh).Build(),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction(meshResourcePath, plancheck.ResourceActionDestroy),
+					},
+				},
+			},
+		},
+	}
+}
+
 // CreatePolicyAndModifyFields creates a policy and modifies fields on it
 func CreatePolicyAndModifyFields(
 	providerFactory map[string]func() (tfprotov6.ProviderServer, error),

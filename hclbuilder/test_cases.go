@@ -172,7 +172,7 @@ func CreatePolicyWithRulesAndModifyFields(
 					allow = [{
 						spiffe_id = {
 							type  = "Prefix"
-							value = "spiffe://"
+							value = "spiffe://example.org"
 						}
 					}]
 				}
@@ -198,7 +198,7 @@ func CreatePolicyWithRulesAndModifyFields(
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
 						plancheck.ExpectResourceAction(policyResourcePath, plancheck.ResourceActionNoop),
-						plancheck.ExpectKnownValue(policyResourcePath, spiffeValuePath, knownvalue.StringExact("spiffe://")),
+						plancheck.ExpectKnownValue(policyResourcePath, spiffeValuePath, knownvalue.StringExact("spiffe://example.org")),
 					},
 				},
 			},
@@ -207,7 +207,7 @@ func CreatePolicyWithRulesAndModifyFields(
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
 						plancheck.ExpectResourceAction(policyResourcePath, plancheck.ResourceActionNoop),
-						plancheck.ExpectKnownValue(policyResourcePath, spiffeValuePath, knownvalue.StringExact("spiffe://")),
+						plancheck.ExpectKnownValue(policyResourcePath, spiffeValuePath, knownvalue.StringExact("spiffe://example.org")),
 					},
 				},
 			},
@@ -289,7 +289,7 @@ func NotImportedResourceWithRulesShouldError(
 					allow = [{
 						spiffe_id = {
 							type  = "Prefix"
-							value = "spiffe://"
+							value = "spiffe://example.org"
 						}
 					}]
 				}

@@ -148,6 +148,73 @@ func CreatePolicyAndModifyFields(
 	}
 }
 
+// CreatePolicyWithRulesAndModifyFields creates a policy using the `rules` spec
+// format (required by newer control planes) and modifies fields on it. It is the
+// `rules` equivalent of CreatePolicyAndModifyFields, which uses the legacy `from`
+// format. The old function is kept for backwards compatibility.
+func CreatePolicyWithRulesAndModifyFields(
+	providerFactory map[string]func() (tfprotov6.ProviderServer, error),
+	builder *Builder,
+	mesh *Builder,
+	policy *Builder,
+) resource.TestCase {
+	policyResourcePath := policy.ResourcePath()
+	meshResourcePath := mesh.ResourcePath()
+
+	// Upsert dependency of policy on mesh
+	policy.DependsOn(mesh)
+
+	// Set policy spec using AddAttribute with HCL string
+	policy.AddAttribute("labels", `{}`).
+		AddAttribute("spec", `{
+			rules = [{
+				default = {
+					allow = [{
+						spiffe_id = {
+							type  = "Prefix"
+							value = "spiffe://"
+						}
+					}]
+				}
+			}]
+		}`)
+
+	spiffeValuePath := tfjsonpath.New("spec").AtMapKey("rules").AtSliceIndex(0).AtMapKey("default").AtMapKey("allow").AtSliceIndex(0).AtMapKey("spiffe_id").AtMapKey("value")
+
+	return resource.TestCase{
+		ProtoV6ProviderFactories: providerFactory,
+		Steps: []resource.TestStep{
+			{
+				Config: builder.Upsert(mesh).Upsert(policy).Build(),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction(meshResourcePath, plancheck.ResourceActionCreate),
+						plancheck.ExpectResourceAction(policyResourcePath, plancheck.ResourceActionCreate),
+					},
+				},
+			},
+			{
+				Config: builder.Upsert(mesh).Upsert(policy).Build(),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction(policyResourcePath, plancheck.ResourceActionNoop),
+						plancheck.ExpectKnownValue(policyResourcePath, spiffeValuePath, knownvalue.StringExact("spiffe://")),
+					},
+				},
+			},
+			{
+				Config: builder.Upsert(mesh).Upsert(policy).Build(),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction(policyResourcePath, plancheck.ResourceActionNoop),
+						plancheck.ExpectKnownValue(policyResourcePath, spiffeValuePath, knownvalue.StringExact("spiffe://")),
+					},
+				},
+			},
+		},
+	}
+}
+
 // NotImportedResourceShouldError tests error handling for non-imported resources
 func NotImportedResourceShouldError(
 	providerFactory map[string]func() (tfprotov6.ProviderServer, error),
@@ -173,6 +240,58 @@ func NotImportedResourceShouldError(
 				}
 				default = {
 					action = "Allow"
+				}
+			}]
+		}`)
+
+	return resource.TestCase{
+		ProtoV6ProviderFactories: providerFactory,
+		Steps: []resource.TestStep{
+			{
+				Config: builder.Upsert(mesh).Build(),
+			},
+			{
+				PreConfig:   preConfigFn,
+				Config:      builder.Upsert(mesh).Upsert(policy).Build(),
+				ExpectError: expectedErr,
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction(policyResourcePath, plancheck.ResourceActionCreate),
+					},
+				},
+			},
+		},
+	}
+}
+
+// NotImportedResourceWithRulesShouldError is the `rules` spec equivalent of
+// NotImportedResourceShouldError. The old function is kept for backwards
+// compatibility.
+func NotImportedResourceWithRulesShouldError(
+	providerFactory map[string]func() (tfprotov6.ProviderServer, error),
+	builder *Builder,
+	mesh *Builder,
+	policy *Builder,
+	preConfigFn func(),
+) resource.TestCase {
+	expectedErr := regexp.MustCompile(`MeshTrafficPermission already exists`)
+
+	policyResourcePath := policy.ResourcePath()
+
+	// Upsert dependency of policy on mesh
+	policy.DependsOn(mesh)
+
+	// Set policy spec using AddAttribute with HCL string
+	policy.AddAttribute("labels", `{}`).
+		AddAttribute("spec", `{
+			rules = [{
+				default = {
+					allow = [{
+						spiffe_id = {
+							type  = "Prefix"
+							value = "spiffe://"
+						}
+					}]
 				}
 			}]
 		}`)

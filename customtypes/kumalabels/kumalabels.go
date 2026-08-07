@@ -62,8 +62,19 @@ func (t KumaLabelsMapType) Equal(o attr.Type) bool {
 }
 
 func (t KumaLabelsMapType) ValueFromMap(ctx context.Context, in basetypes.MapValue) (basetypes.MapValuable, diag.Diagnostics) {
+	// Null means "the API returned no labels": this is the Go/API -> value direction, only
+	// reached from generated RefreshFrom* code and reflection, never from config or state
+	// (ValueFromTerraform short-circuits null before it gets here).
+	//
+	// Every schema using this type is Computed+Optional with EmptyKumaLabelsMapDefault, so
+	// "no labels" plans as an empty map, never null. Returning null here would leave the
+	// refreshed state disagreeing with that plan forever, and semantic equality can't fix it
+	// after the fact - the framework skips it whenever either side is null.
+	//
+	// Keeping the config direction null-preserving is what stops #30 from coming back on
+	// resources where labels is not Computed.
 	if in.IsNull() {
-		return KumaLabelsMapValue{MapValue: basetypes.NewMapNull(types.StringType)}, nil
+		return KumaLabelsMapValue{MapValue: types.MapValueMust(types.StringType, map[string]attr.Value{})}, nil
 	}
 
 	allLabels := in.Elements()

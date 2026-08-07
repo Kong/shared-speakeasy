@@ -60,9 +60,9 @@ func TestKumaLabelsMapType_ValueFromMap(t *testing.T) {
 			expectedOutput: map[string]string{},
 		},
 		{
-			name:           "input is nil — expect nil",
+			name:           "input is nil (API returned no labels) - expect empty map to match the schema default",
 			input:          nil,
-			expectedOutput: nil,
+			expectedOutput: map[string]string{},
 		},
 		{
 			name:           "input is empty map — expect empty map",

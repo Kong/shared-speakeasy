@@ -1,6 +1,6 @@
 module github.com/Kong/shared-speakeasy/planmodifiers/arbitrary_json
 
-go 1.24.1
+go 1.25.0
 
 require github.com/hashicorp/terraform-plugin-framework v1.17.0
 
@@ -14,5 +14,5 @@ require (
 	github.com/mitchellh/go-testing-interface v1.14.1 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
-	golang.org/x/sys v0.35.0 // indirect
+	golang.org/x/sys v0.44.0 // indirect
 )

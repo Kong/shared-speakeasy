@@ -144,10 +144,10 @@ func CreateMeshWithMtlsAndModifyFields(
 	}
 }
 
-// CreateMeshWithLabelsAndModifyFields creates a mesh and modifies its labels.
+// CreateMeshAndModifyLabels creates a mesh and adds, changes and removes labels.
 // V3 control planes dropped `mtls`, `routing` and `constraints` from the mesh,
 // so labels are the only user-settable field left to modify.
-func CreateMeshWithLabelsAndModifyFields(
+func CreateMeshAndModifyLabels(
 	providerFactory map[string]func() (tfprotov6.ProviderServer, error),
 	builder *Builder,
 	mesh *Builder,

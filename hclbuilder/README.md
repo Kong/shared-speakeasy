@@ -185,7 +185,7 @@ Reusable test cases for common scenarios:
 - `CreateMeshAndModifyFields` - Tests mesh creation and field modifications
 - `CreatePolicyAndModifyFields` - Tests policy creation and field modifications
 - `NotImportedResourceShouldError` - Tests error handling for non-imported resources
-- `CreateMeshWithLabelsAndModifyFields` - Tests mesh creation and label modifications (V3 control planes)
+- `CreateMeshAndModifyLabels` - Tests mesh creation and label modifications (V3 control planes)
 - `ShouldBeAbleToStoreAndUpdateSecrets` - Tests secret creation, updates and removal without mesh `mtls` (V3 control planes)
 
 See `test_cases.go` for details.

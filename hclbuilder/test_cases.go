@@ -350,7 +350,7 @@ func NotImportedResourceShouldError(
 	policy *Builder,
 	preConfigFn func(),
 ) resource.TestCase {
-	expectedErr := regexp.MustCompile(`MeshTrafficPermission already exists`)
+	expectedErr := regexp.MustCompile(`(?i)already exists`)
 
 	policyResourcePath := policy.ResourcePath()
 
@@ -401,7 +401,7 @@ func NotImportedResourceWithRulesShouldError(
 	policy *Builder,
 	preConfigFn func(),
 ) resource.TestCase {
-	expectedErr := regexp.MustCompile(`MeshTrafficPermission already exists`)
+	expectedErr := regexp.MustCompile(`(?i)already exists`)
 
 	policyResourcePath := policy.ResourcePath()
 
